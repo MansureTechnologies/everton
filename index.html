@@ -2741,7 +2741,7 @@ const appHTML = `<div id="app-container">
         </div>
     </div>
 
-   <!-- CONTEÚDO DA ABA 2: VISÃO DA EQUIPE (Dashboard Unificado) -->
+    <!-- CONTEÚDO DA ABA 2: VISÃO DA EQUIPE (Dashboard Unificado) -->
     <div id="task-manager-view-dashboard" style="display: none;">
         
         <!-- 1. BARRA DE FILTROS INTELIGENTES -->
@@ -2807,6 +2807,7 @@ const appHTML = `<div id="app-container">
         </div>
 
     </div>
+</div>
                 <div id="my-processes-page" class="page-content"><div class="page-header"><div><h1>Meus Processos</h1><p>Tarefas de fluxo contínuo sob sua responsabilidade.</p></div></div><div id="my-processes-list" class="grid grid-cols-2"><div class="empty-state">Carregando seus processos...</div></div></div>
                 
                 <!-- NOVA PÁGINA DE MANUTENÇÃO -->
@@ -13130,10 +13131,6 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
         // INÍCIO: DASHBOARD GERENCIAL DE TAREFAS (A "Torre de Controle")
         // ===================================================================
 
-       // ===================================================================
-        // INÍCIO: DASHBOARD GERENCIAL DE TAREFAS UNIFICADO
-        // ===================================================================
-
         // 1. Navegação de Abas
         function switchTaskManagerTab(tab) {
             document.getElementById('task-manager-view-models').style.display = tab === 'models' ? 'block' : 'none';
@@ -14211,7 +14208,7 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             </div>
         `);
         
-       // Função que abre o modal de histórico (VERSÃO ENRIQUECIDA)
+        // Função que abre o modal de histórico (VERSÃO ENRIQUECIDA)
         async function openTaskHistoryModal(assignmentId) {
             const modal = document.getElementById('task-history-modal');
             const body = document.getElementById('task-history-body');
