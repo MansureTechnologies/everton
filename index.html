@@ -2703,20 +2703,26 @@ const appHTML = `<div id="app-container">
     </div>
 </div>
 
-<!-- NOVA PÁGINA DEDICADA PARA GERENCIAR TAREFAS PONTUAIS -->
+<!-- PÁGINA: GERENCIAR TAREFAS (Dashboard do Gestor) -->
 <div id="manage-routines-page" class="page-content">
     <div class="page-header" style="margin-bottom: 1.5rem;">
-        <div><h1>Gerenciar Tarefas</h1><p>Crie modelos de tarefa e delegue para sua equipe.</p></div>
+        <div><h1>Gerenciar Tarefas</h1><p>Planejamento, delegação e monitoramento de desempenho da sua equipe.</p></div>
     </div>
-    <div class="grid" style="grid-template-columns: 350px 1fr; gap: 1.5rem; align-items: flex-start;">
-        <!-- Coluna da Esquerda: Lista de Modelos de Tarefa -->
+
+    <!-- ABAS PRINCIPAIS -->
+    <div class="mgt-tabs" style="margin-bottom: 1.5rem;">
+        <button class="mgt-tab-btn active" id="btn-tab-task-models" onclick="switchTaskManagerTab('models')">Modelos e Delegação</button>
+        <button class="mgt-tab-btn" id="btn-tab-task-dashboard" onclick="switchTaskManagerTab('dashboard')">Visão da Equipe (Dashboard)</button>
+    </div>
+
+    <!-- CONTEÚDO DA ABA 1: MODELOS E DELEGAÇÃO (A interface que já criamos e funciona) -->
+    <div id="task-manager-view-models">
+        <div class="grid" style="grid-template-columns: 350px 1fr; gap: 1.5rem; align-items: flex-start;">
             <div class="card" style="padding: 0; overflow: hidden;">
                 <div class="routines-column-header">
                     <h3>Modelos de Tarefa</h3>
                     <button class="btn btn-danger btn-icon" onclick="openNewTaskTemplateModal()" title="Nova Tarefa Pontual"><span class="material-icons">add</span></button>
                 </div>
-                
-                <!-- NOVA SEÇÃO DE FILTROS -->
                 <div class="filter-row" style="padding: 0.5rem 1rem;">
                     <input type="text" id="task-template-search" class="input-field" placeholder="Buscar por título..." oninput="loadPunctualTasksManager()" style="padding: 0.6rem;">
                     <select id="task-template-sort" class="input-field" onchange="loadPunctualTasksManager()" style="padding: 0.6rem; flex-grow: 0; min-width: 120px;">
@@ -2725,15 +2731,104 @@ const appHTML = `<div id="app-container">
                         <option value="alphabetical">Ordem Alfabética</option>
                     </select>
                 </div>
-
                 <div class="routines-list" id="punctual-tasks-list">
-                    <div class="empty-state">Nenhuma tarefa criada.</div>
+                    <div class="empty-state">Carregando...</div>
                 </div>
             </div>
-        <!-- Coluna da Direita: Detalhes e Delegação -->
-        <div class="card" id="punctual-task-details-panel" style="min-height: 500px;">
-            <div class="empty-state">Selecione ou crie uma tarefa para começar.</div>
+            <div class="card" id="punctual-task-details-panel" style="min-height: 500px;">
+                <div class="empty-state">Selecione ou crie uma tarefa para começar.</div>
+            </div>
         </div>
+    </div>
+
+    <!-- CONTEÚDO DA ABA 2: VISÃO DA EQUIPE (A Nova "Torre de Controle") -->
+    <div id="task-manager-view-dashboard" style="display: none;">
+        
+        <!-- BARRA DE FILTROS GLOBAIS DO DASHBOARD -->
+        <div class="card team-filters" style="margin-bottom: 1.5rem; background: var(--color-background); border: 1px solid var(--color-border); padding: 1rem;">
+            <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 1rem; width: 100%; grid-column: 1 / -1;">
+                <span class="material-icons" style="color:var(--color-text-secondary);">tune</span>
+                <strong style="font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--color-text-secondary);">Filtros de Visão</strong>
+            </div>
+            
+            <div class="form-group" style="margin:0;">
+                <label style="font-size:0.75rem;">Visão / Período</label>
+                <select id="task-dash-period" class="input-field" onchange="toggleTaskDashboardViews(); loadTaskDashboardData();">
+                    <option value="today">Visão Operacional (Hoje)</option>
+                    <option value="tomorrow">Visão Operacional (Amanhã)</option>
+                    <option value="this_week">Visão Analítica (Esta Semana)</option>
+                    <option value="this_month">Visão Analítica (Este Mês)</option>
+                    <option value="last_30_days">Visão Analítica (Últimos 30 Dias)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label style="font-size:0.75rem;">Setor</label>
+                <select id="task-dash-department" class="input-field" onchange="loadTaskDashboardData()">
+                    <option value="all">Todos os Setores</option>
+                    <!-- Preenchido via JS -->
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label style="font-size:0.75rem;">Colaborador</label>
+                <select id="task-dash-assignee" class="input-field" onchange="loadTaskDashboardData()">
+                    <option value="all">Todos os Colaboradores</option>
+                    <!-- Preenchido via JS -->
+                </select>
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:0.5rem;">
+               <button class="btn btn-secondary" onclick="loadTaskDashboardData()" title="Atualizar Dados" style="height: 42px; padding: 0 1rem;"><span class="material-icons" id="task-dash-refresh-icon">sync</span></button>
+            </div>
+        </div>
+
+        <!-- 2.1: LAYOUT OPERACIONAL (Para Hoje/Amanhã - Estilo Calendário) -->
+        <div id="task-dash-layout-operational" class="grid" style="grid-template-columns: 350px 1fr; gap: 1.5rem; align-items: flex-start;">
+            <div class="card" id="task-dash-calendar-container" style="padding: 1rem;">
+                <!-- Mini-calendário simplificado virá aqui -->
+            </div>
+            <div class="card" style="padding: 0; overflow:hidden;">
+                 <div class="routines-column-header" style="background:var(--color-background); border-bottom:2px solid var(--color-border);">
+                     <h3 id="task-dash-daily-title" style="margin:0;">Tarefas do Dia</h3>
+                 </div>
+                 <div id="task-dash-daily-list" style="padding: 1rem; max-height: 600px; overflow-y: auto;">
+                     <!-- Cards de tarefas agrupados virão aqui -->
+                 </div>
+            </div>
+        </div>
+
+        <!-- 2.2: LAYOUT ANALÍTICO (Para Períodos Longos - KPIs e Tabelas) -->
+        <div id="task-dash-layout-analytical" style="display: none;">
+            
+            <!-- KPIs -->
+            <div class="kpi-grid" id="task-dash-kpi-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- Cards de KPI gerados pelo JS -->
+            </div>
+
+            <!-- Tabela Detalhada / Auditoria -->
+            <div class="card" style="padding: 0;">
+                <div class="routines-column-header" style="background:var(--color-background); display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0;">Histórico Detalhado (Auditoria)</h3>
+                    <button class="btn btn-secondary btn-icon" title="Exportar para Excel"><span class="material-icons" style="color:#1D6F42;">table_view</span></button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Tarefa</th>
+                                <th>Status</th>
+                                <th>Previsão</th>
+                                <th>Tempo Gasto vs Est.</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="task-dash-table-body">
+                            <!-- Linhas da tabela virão aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
                 <div id="my-processes-page" class="page-content"><div class="page-header"><div><h1>Meus Processos</h1><p>Tarefas de fluxo contínuo sob sua responsabilidade.</p></div></div><div id="my-processes-list" class="grid grid-cols-2"><div class="empty-state">Carregando seus processos...</div></div></div>
@@ -13055,6 +13150,239 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
     }
 }
 
+// ===================================================================
+        // INÍCIO: DASHBOARD GERENCIAL DE TAREFAS (A "Torre de Controle")
+        // ===================================================================
+
+        // 1. Controle de Navegação Principal da Página
+        function switchTaskManagerTab(tab) {
+            document.getElementById('task-manager-view-models').style.display = tab === 'models' ? 'block' : 'none';
+            document.getElementById('task-manager-view-dashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
+            
+            document.getElementById('btn-tab-task-models').classList.toggle('active', tab === 'models');
+            document.getElementById('btn-tab-task-dashboard').classList.toggle('active', tab === 'dashboard');
+
+            if (tab === 'models') {
+                loadPunctualTasksManager();
+            } else if (tab === 'dashboard') {
+                populateTaskDashboardFilters();
+                loadTaskDashboardData();
+            }
+        }
+
+        // 2. Controle de Alternância entre os Layouts do Dashboard
+        function toggleTaskDashboardViews() {
+            const period = document.getElementById('task-dash-period').value;
+            const isOperational = ['today', 'tomorrow'].includes(period);
+            
+            document.getElementById('task-dash-layout-operational').style.display = isOperational ? 'grid' : 'none';
+            document.getElementById('task-dash-layout-analytical').style.display = !isOperational ? 'block' : 'none';
+        }
+
+        // 3. Preenche os filtros de Setor e Colaborador apenas com a equipe do Gestor
+        async function populateTaskDashboardFilters() {
+            const assigneeSelect = document.getElementById('task-dash-assignee');
+            const deptSelect = document.getElementById('task-dash-department');
+            
+            // Impede recarregar as opções se já estiverem carregadas
+            if(assigneeSelect.options.length > 1) return;
+
+            // Busca liderados diretos
+            const { data: team, error } = await supabaseClient
+                .from('profiles')
+                .select('id, full_name, department')
+                .eq('manager_id', currentUserProfile.id)
+                .order('full_name');
+
+            if (error || !team) return;
+
+            const depts = [...new Set(team.map(u => u.department).filter(Boolean))].sort();
+
+            depts.forEach(d => deptSelect.innerHTML += `<option value="${d}">${d}</option>`);
+            team.forEach(u => assigneeSelect.innerHTML += `<option value="${u.id}">${u.full_name}</option>`);
+        }
+		
+		// 4. O "Coração" do Dashboard: Busca e Renderiza os Dados
+        async function loadTaskDashboardData() {
+            const icon = document.getElementById('task-dash-refresh-icon');
+            if(icon) icon.classList.add('refresh-spin');
+
+            const period = document.getElementById('task-dash-period').value;
+            const deptFilter = document.getElementById('task-dash-department').value;
+            const assigneeFilter = document.getElementById('task-dash-assignee').value;
+
+            // Define as datas baseadas no período selecionado
+            let startDate = new Date();
+            let endDate = new Date();
+
+            if (period === 'today') {
+                // startDate e endDate continuam como hoje
+            } else if (period === 'tomorrow') {
+                startDate.setDate(startDate.getDate() + 1);
+                endDate = new Date(startDate);
+            } else if (period === 'this_week') {
+                const day = startDate.getDay() || 7; 
+                if (day !== 1) startDate.setHours(-24 * (day - 1)); 
+                endDate.setDate(startDate.getDate() + 6);
+            } else if (period === 'this_month') {
+                startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+                endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+            } else if (period === 'last_30_days') {
+                startDate.setDate(startDate.getDate() - 30);
+            }
+
+            // Formata para o Supabase (YYYY-MM-DD)
+            const sdStr = startDate.toISOString().split('T')[0];
+            const edStr = endDate.toISOString().split('T')[0];
+
+            try {
+                // A CHAMADA PARA A NOSSA "SUPER FUNÇÃO" NO SUPABASE
+                const { data: tasks, error } = await supabaseClient.rpc('get_manager_tasks_dashboard_data', {
+                    p_manager_id: currentUserProfile.id,
+                    p_start_date: sdStr,
+                    p_end_date: edStr,
+                    p_assignee_id: assigneeFilter === 'all' ? null : assigneeFilter,
+                    p_department: deptFilter === 'all' ? null : deptFilter
+                });
+
+                if (error) throw error;
+
+                const safeTasks = tasks || [];
+
+                // Direciona os dados para o layout correto
+                if (['today', 'tomorrow'].includes(period)) {
+                    renderOperationalDashboard(safeTasks, startDate);
+                } else {
+                    renderAnalyticalDashboard(safeTasks);
+                }
+
+            } catch (error) {
+                console.error("Erro no Dashboard:", error);
+                showToast("Erro ao processar dados analíticos.", "danger");
+            } finally {
+                setTimeout(() => { if(icon) icon.classList.remove('refresh-spin'); }, 500);
+            }
+        }
+
+        // 5. Renderização do Layout Operacional (Hoje/Amanhã)
+        function renderOperationalDashboard(tasks, dateObj) {
+            const titleEl = document.getElementById('task-dash-daily-title');
+            const listEl = document.getElementById('task-dash-daily-list');
+            
+            titleEl.textContent = `Demandas da Equipe para: ${dateObj.toLocaleDateString('pt-BR')}`;
+            
+            if (tasks.length === 0) {
+                listEl.innerHTML = `<div class="empty-state">Nenhuma tarefa agendada para a equipe neste dia.</div>`;
+                return;
+            }
+
+            // Agrupa as tarefas por Status
+            const grouped = { 'in_progress': [], 'pending': [], 'completed': [] };
+            tasks.forEach(t => { if(grouped[t.status]) grouped[t.status].push(t); });
+
+            let html = '';
+
+            const createSection = (title, items, icon, color) => {
+                if (items.length === 0) return '';
+                return `
+                    <div style="margin-bottom: 2rem;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 4px;">
+                            <span class="material-icons" style="color:${color}; font-size:18px;">${icon}</span>
+                            <strong style="text-transform:uppercase; font-size:0.85rem; color:${color};">${title} (${items.length})</strong>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                            ${items.map(t => {
+                                const overdueHtml = t.is_overdue ? `<span class="tag-fino tag-urgent" style="margin-left:auto;">ATRASADA</span>` : '';
+                                return `
+                                <div style="background:var(--color-surface); border:1px solid var(--color-border); border-left:4px solid ${color}; border-radius:8px; padding:1rem; display:flex; flex-direction:column; gap:4px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                        <strong style="font-size:1rem;">${t.task_title}</strong>
+                                        ${overdueHtml}
+                                    </div>
+                                    <div style="font-size:0.8rem; color:var(--color-text-secondary); display:flex; align-items:center; gap:6px;">
+                                        <span class="material-icons" style="font-size:14px;">person</span> <strong>${t.assignee_name}</strong>
+                                    </div>
+                                    <div style="margin-top:0.5rem; display:flex; justify-content:flex-end;">
+                                        <button class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem;" onclick="openTaskHistoryModal('${t.assignment_id}')">Ver Detalhes</button>
+                                    </div>
+                                </div>
+                            `}).join('')}
+                        </div>
+                    </div>
+                `;
+            };
+
+            html += createSection('Em Andamento', grouped['in_progress'], 'play_circle', 'var(--color-info)');
+            html += createSection('Pendentes', grouped['pending'], 'pending_actions', 'var(--color-warning)');
+            html += createSection('Concluídas', grouped['completed'], 'check_circle', 'var(--color-success)');
+
+            listEl.innerHTML = html;
+        }
+
+        // 6. Renderização do Layout Analítico (KPIs e Tabela)
+        function renderAnalyticalDashboard(tasks) {
+            const kpiContainer = document.getElementById('task-dash-kpi-container');
+            const tableBody = document.getElementById('task-dash-table-body');
+
+            const total = tasks.length;
+            const concluido = tasks.filter(t => t.status === 'completed').length;
+            const atrasado = tasks.filter(t => t.is_overdue).length;
+            
+            const taxa = total > 0 ? Math.round((concluido / total) * 100) : 0;
+            const taxaColor = taxa >= 80 ? 'var(--color-success)' : (taxa >= 50 ? 'var(--color-warning)' : 'var(--color-danger)');
+
+            // Criação dos Cards de KPI
+            const createKpiCard = (value, label, icon, iconColor, bgColor, borderColor) => `
+                <div style="background-color: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 12px; padding: 1.5rem; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow);">
+                    <div>
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">${label}</div>
+                        <div style="font-size: 2rem; font-weight: 800; color: var(--color-text-primary); line-height: 1;">${value}</div>
+                    </div>
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: ${borderColor}; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons" style="font-size: 24px; color: ${iconColor};">${icon}</span>
+                    </div>
+                </div>
+            `;
+
+            kpiContainer.innerHTML = `
+                ${createKpiCard(total, 'Total Delegado', 'assignment', 'var(--color-info)', 'var(--color-info-bg)', 'rgba(59, 130, 246, 0.2)')}
+                ${createKpiCard(`${taxa}%`, 'Taxa de Conclusão', 'trending_up', taxaColor, 'var(--color-background)', `1px solid ${taxaColor}`)}
+                ${createKpiCard(atrasado, 'Tarefas Atrasadas', 'warning', 'var(--color-danger)', 'var(--color-danger-bg)', 'rgba(216, 25, 32, 0.2)')}
+            `;
+
+            // Tabela Detalhada
+            if(total === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="empty-state">Nenhum dado no período selecionado.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = tasks.map(t => {
+                let statusClass = t.status === 'completed' ? 'status-approved' : (t.is_overdue ? 'status-rejected' : 'status-pending');
+                let statusLabel = t.status === 'completed' ? 'Concluída' : (t.status === 'in_progress' ? 'Em Andamento' : 'Pendente');
+                if (t.is_overdue && t.status !== 'completed') statusLabel = 'Atrasada';
+
+                let timeInfo = 'N/A';
+                if(t.status === 'completed' && t.started_at && t.completed_at) {
+                    const diffMins = Math.floor((new Date(t.completed_at) - new Date(t.started_at)) / 60000);
+                    timeInfo = `${diffMins} min`;
+                    if(t.estimated_time_minutes > 0) {
+                        const vs = diffMins - t.estimated_time_minutes;
+                        const vsColor = vs <= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                        timeInfo += ` <span style="font-size:0.7rem; color:${vsColor};">(${vs > 0 ? '+' : ''}${vs}m do est.)</span>`;
+                    }
+                }
+
+                return `
+                <tr>
+                    <td><strong>${t.assignee_name}</strong><br><small style="color:var(--color-text-secondary);">${t.assignee_department || '-'}</small></td>
+                    <td>${t.task_title}</td>
+                    <td><span class="status-tag ${statusClass}">${statusLabel}</span></td>
+                    <td>${new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td>${timeInfo}</td>
+                    <td><button class="btn btn-icon" title="Ver Histórico" onclick="openTaskHistoryModal('${t.assignment_id}')"><span class="material-icons">history</span></button></td>
+                </tr>
+            `}).join('');
+        }
 
         // ===================================================================
         // INÍCIO: NOVAS FUNÇÕES PARA O MÓDULO DE TAREFAS PONTUAIS
