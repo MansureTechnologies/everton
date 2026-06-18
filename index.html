@@ -14835,6 +14835,11 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                 showToast("Solicitação de Ferramentaria enviada!", "success");
                 closeRequestModal();
                 
+                // Recarrega a tabela e mantém na aba de ferramentaria
+                setTimeout(() => {
+                    loadToolingManagementData();
+                }, 1000);
+                
             } catch (e) {
                 showToast(e.message, "danger");
             } finally {
@@ -15096,7 +15101,24 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                 }
 
                 modalBody.innerHTML = `<div style="padding: 0.5rem;">${headerHTML}${timelineHTML}${feedbackFormHTML}</div>`;
-                modalFooter.innerHTML = `<button class="btn btn-secondary" onclick="closeRequestModal()">Fechar Painel</button>`;
+                
+                // --- BOTÕES DE AÇÃO DINÂMICOS NO RODAPÉ ---
+                const p = currentUserProfile.permissions || [];
+                const canManageTooling = p.includes('manage_users') || p.includes('mgt_tooling');
+                let footerActionsHTML = '';
+                
+                if (canManageTooling) {
+                    if (request.status === 'pending') {
+                        footerActionsHTML += `<button class="btn btn-warning" onclick="openToolingPlanningModal('${request.id}')">Planejar</button>`;
+                    } else if (request.status === 'planned') {
+                        footerActionsHTML += `<button class="btn btn-success" onclick="openToolingExecutionModal('${request.id}')">Executar</button>`;
+                    }
+                }
+                
+                modalFooter.innerHTML = `
+                    <button class="btn btn-secondary" onclick="closeRequestModal()">Fechar Painel</button>
+                    ${footerActionsHTML}
+                `;
 
             } catch (error) {
                 modalBody.innerHTML = `<div class="empty-state" style="color:var(--color-danger);">${error.message}</div>`;
@@ -15140,7 +15162,14 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
 
                 showToast('Planejamento salvo!', 'success');
                 document.getElementById('tooling-planning-modal').classList.remove('visible');
+                
+                // Atualiza a tabela geral
                 loadToolingManagementData();
+                
+                // Se o modal de detalhes estiver aberto, atualiza ele também
+                if (document.getElementById('request-modal').classList.contains('visible')) {
+                    setTimeout(() => openToolingDetailsModal(requestId), 500);
+                }
             } catch (e) {
                 showToast('Erro ao planejar.', 'danger');
             } finally {
@@ -15192,7 +15221,14 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                 
                 showToast('Ferramenta entregue/executada!', 'success');
                 document.getElementById('tooling-execution-modal').classList.remove('visible');
+                
+                // Atualiza a tabela geral
                 loadToolingManagementData();
+                
+                // Se o modal de detalhes estiver aberto, atualiza ele também
+                if (document.getElementById('request-modal').classList.contains('visible')) {
+                    setTimeout(() => openToolingDetailsModal(requestId), 500);
+                }
             } catch (e) {
                 showToast('Erro ao executar.', 'danger');
             } finally {
