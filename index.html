@@ -14858,25 +14858,36 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             const myBody = document.getElementById('my-tooling-table-body');
             if (myBody) {
                 myBody.innerHTML = `<tr><td colspan="6" class="empty-state">Buscando...</td></tr>`;
-                const { data: myData } = await supabaseClient.from('tooling_requests').select('*').eq('requester_id', currentUserProfile.id).order('created_at', { ascending: false });
-                
-                if (!myData || myData.length === 0) {
-                    myBody.innerHTML = `<tr><td colspan="6" class="empty-state">Você não abriu nenhuma solicitação de ferramentaria.</td></tr>`;
-                } else {
-                    const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
-                    myBody.innerHTML = myData.map(req => {
-                        const date = new Date(req.created_at).toLocaleDateString('pt-BR');
-                        return `
-                            <tr>
-                                <td><strong>${req.item_description}</strong></td>
-                                <td>${req.sector}</td>
-                                <td>${req.quantity}</td>
-                                <td>${date}</td>
-                                <td><span class="status-tag status-${req.status}">${statusLabels[req.status] || req.status}</span></td>
-                                <td><button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openToolingDetailsModal('${req.id}')">Ver Detalhes</button></td>
-                            </tr>
-                        `;
-                    }).join('');
+                try {
+                    const { data: myData, error: myError } = await supabaseClient
+                        .from('tooling_requests')
+                        .select('*')
+                        .eq('requester_id', currentUserProfile.id)
+                        .order('created_at', { ascending: false });
+                    
+                    if (myError) throw myError;
+
+                    if (!myData || myData.length === 0) {
+                        myBody.innerHTML = `<tr><td colspan="6" class="empty-state">Você não abriu nenhuma solicitação de ferramentaria.</td></tr>`;
+                    } else {
+                        const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
+                        myBody.innerHTML = myData.map(req => {
+                            const date = new Date(req.created_at).toLocaleDateString('pt-BR');
+                            return `
+                                <tr>
+                                    <td><strong>${req.item_description || 'Sem Descrição'}</strong></td>
+                                    <td>${req.sector || 'N/A'}</td>
+                                    <td>${req.quantity || 0} / ${req.stock_quantity || 0}</td>
+                                    <td>${date}</td>
+                                    <td><span class="status-tag status-${req.status || 'pending'}">${statusLabels[req.status] || req.status || 'Pendente'}</span></td>
+                                    <td style="text-align: right;"><button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openToolingDetailsModal('${req.id}')">Ver Detalhes</button></td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                } catch (e) {
+                    console.error("Erro ao buscar Minhas Solicitações de Ferramentaria:", e);
+                    myBody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:var(--color-danger);">Falha ao carregar suas requisições.</td></tr>`;
                 }
             }
 
