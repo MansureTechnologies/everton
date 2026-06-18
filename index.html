@@ -9015,10 +9015,12 @@ async function executeMaintenanceRequestHandler(requestId) {
                 buttonId = 'tab-btn-my-maintenance';
             } else if (tabId === 'my_tooling') {
                 buttonId = 'tab-btn-my-tooling';
+                loadToolingManagementData(); // Força o carregamento ao clicar
             } else if (tabId === 'manage') {
                 buttonId = 'tab-btn-manage-maintenance';
             } else if (tabId === 'tooling') {
                 buttonId = 'tab-btn-manage-tooling';
+                loadToolingManagementData(); // Força o carregamento ao clicar
             } else {
                 buttonId = `tab-btn-${tabId}`;
             }
