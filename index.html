@@ -2827,12 +2827,13 @@ const appHTML = `<div id="app-container">
                         </div>
                     </div>
 
-                    <div class="mgt-tabs">
-                        <button class="mgt-tab-btn active" id="tab-btn-my-maintenance" onclick="switchMaintenanceTab('my_requests')">Minhas Solicitações</button>
-                        <button class="mgt-tab-btn" id="tab-btn-manage-maintenance" style="display:none;" onclick="switchMaintenanceTab('manage')">Gerenciar Pendências</button>
+                    <div class="mgt-tabs" style="flex-wrap: wrap;">
+                        <button class="mgt-tab-btn active" id="tab-btn-my-maintenance" onclick="switchMaintenanceTab('my_requests')">Minhas (Manutenção)</button>
+                        <button class="mgt-tab-btn" id="tab-btn-my-tooling" style="display:none;" onclick="switchMaintenanceTab('my_tooling')">Minhas (Ferramentaria)</button>
+                        <button class="mgt-tab-btn" id="tab-btn-manage-maintenance" style="display:none;" onclick="switchMaintenanceTab('manage')">Gestão Manutenção</button>
+                        <button class="mgt-tab-btn" id="tab-btn-manage-tooling" style="display:none;" onclick="switchMaintenanceTab('tooling')">Gestão Ferramentaria</button>
                         <button class="mgt-tab-btn" id="tab-btn-technicians" style="display:none;" onclick="switchMaintenanceTab('technicians')">Equipe Técnica</button>
                         <button class="mgt-tab-btn" id="tab-btn-preventive" style="display:none;" onclick="switchMaintenanceTab('preventive')">Calendário Preventivo</button>
-                        <button class="mgt-tab-btn" id="tab-btn-manage-tooling" style="display:none;" onclick="switchMaintenanceTab('tooling')">Gestão Ferramentaria</button>
                     </div>
 
                     <!-- Conteúdo das Abas -->
@@ -2881,7 +2882,26 @@ const appHTML = `<div id="app-container">
                         <div class="empty-state">Calendário de Manutenção Preventiva - Em breve.</div>
                     </div>
                     
+                    <!-- ABA: MINHAS SOLICITAÇÕES DE FERRAMENTARIA -->
+                    <div id="maintenance-tab-my_tooling" class="maintenance-tab-content" style="display:none;">
+                        <div class="card" style="padding:0;">
+                            <table class="data-table">
+                                <thead><tr><th>Item</th><th>Setor</th><th>Qtd/Estoque</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead>
+                                <tbody id="my-tooling-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ABA: GESTÃO DE FERRAMENTARIA COM FILTROS -->
                     <div id="maintenance-tab-tooling" class="maintenance-tab-content" style="display:none;">
+                        <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                            <div id="tooling-filter-controls" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn btn-secondary active" data-status="all">Todos</button>
+                                <button class="btn btn-secondary" data-status="pending">Pendentes</button>
+                                <button class="btn btn-secondary" data-status="planned">Planejadas</button>
+                                <button class="btn btn-secondary" data-status="executed">Executadas</button>
+                            </div>
+                        </div>
                         <div class="card" style="padding:0; overflow-x: auto;">
                             <table class="data-table">
                                 <thead>
@@ -8986,8 +9006,12 @@ async function executeMaintenanceRequestHandler(requestId) {
             let buttonId;
             if (tabId === 'my_requests') {
                 buttonId = 'tab-btn-my-maintenance';
+            } else if (tabId === 'my_tooling') {
+                buttonId = 'tab-btn-my-tooling';
             } else if (tabId === 'manage') {
                 buttonId = 'tab-btn-manage-maintenance';
+            } else if (tabId === 'tooling') {
+                buttonId = 'tab-btn-manage-tooling';
             } else {
                 buttonId = `tab-btn-${tabId}`;
             }
@@ -9245,6 +9269,7 @@ function changeItemsPerPage(value) {
             
             // Controle das Abas Visíveis
             document.getElementById('tab-btn-my-maintenance').style.display = canViewMaintenance ? 'block' : 'none';
+            document.getElementById('tab-btn-my-tooling').style.display = canViewTooling ? 'block' : 'none';
             document.getElementById('tab-btn-manage-maintenance').style.display = (isAdmin || p.includes('mgt_maintenance')) ? 'block' : 'none';
             document.getElementById('tab-btn-technicians').style.display = (isAdmin || p.includes('manage_technicians')) ? 'block' : 'none';
             document.getElementById('tab-btn-preventive').style.display = (isAdmin || p.includes('manage_preventive_schedules')) ? 'block' : 'none';
@@ -9252,10 +9277,8 @@ function changeItemsPerPage(value) {
             // Aba de Gestão de Ferramentaria
             document.getElementById('tab-btn-manage-tooling').style.display = (isAdmin || p.includes('mgt_tooling')) ? 'block' : 'none';
 
-            // Se ele não pode ver manutenção, esconde a div inteira do conteúdo de manutenção
-            if (!canViewMaintenance) {
-                document.getElementById('maintenance-tab-my_requests').style.display = 'none';
-            }
+            if (!canViewMaintenance) document.getElementById('maintenance-tab-my_requests').style.display = 'none';
+            if (!canViewTooling) document.getElementById('maintenance-tab-my_tooling').style.display = 'none';
 
             // NOVO: Busca rápida de todas as manutenções atualmente "Aguardando Peça"
             let waitingRequestIds = new Set();
@@ -14812,7 +14835,50 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             }
         }
 
+        let allToolingRequestsCache = [];
+        let currentToolingStatusFilter = 'all';
+
         async function loadToolingManagementData() {
+            // 1. CARREGAR MINHAS SOLICITAÇÕES
+            const myBody = document.getElementById('my-tooling-table-body');
+            if (myBody) {
+                myBody.innerHTML = `<tr><td colspan="6" class="empty-state">Buscando...</td></tr>`;
+                const { data: myData } = await supabaseClient.from('tooling_requests').select('*').eq('requester_id', currentUserProfile.id).order('created_at', { ascending: false });
+                
+                if (!myData || myData.length === 0) {
+                    myBody.innerHTML = `<tr><td colspan="6" class="empty-state">Você não abriu nenhuma solicitação de ferramentaria.</td></tr>`;
+                } else {
+                    const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
+                    myBody.innerHTML = myData.map(req => {
+                        const date = new Date(req.created_at).toLocaleDateString('pt-BR');
+                        return `
+                            <tr>
+                                <td><strong>${req.item_description}</strong></td>
+                                <td>${req.sector}</td>
+                                <td>${req.quantity}</td>
+                                <td>${date}</td>
+                                <td><span class="status-tag status-${req.status}">${statusLabels[req.status] || req.status}</span></td>
+                                <td><button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openToolingDetailsModal('${req.id}')">Ver Detalhes</button></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // 2. CONFIGURAR FILTROS DE GESTÃO
+            document.querySelectorAll('#tooling-filter-controls button').forEach(button => {
+                // Remove listeners antigos para não duplicar
+                const newBtn = button.cloneNode(true);
+                button.parentNode.replaceChild(newBtn, button);
+                newBtn.addEventListener('click', () => {
+                    currentToolingStatusFilter = newBtn.dataset.status;
+                    document.querySelectorAll('#tooling-filter-controls button').forEach(b => b.classList.remove('active'));
+                    newBtn.classList.add('active');
+                    renderToolingTable();
+                });
+            });
+
+            // 3. CARREGAR GESTÃO GERAL
             const tableBody = document.getElementById('manage-tooling-table-body');
             if(!tableBody) return;
             tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Buscando ferramentaria...</td></tr>`;
@@ -14823,24 +14889,37 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                 tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Erro ao carregar dados.</td></tr>`;
                 return;
             }
+            
+            allToolingRequestsCache = data || [];
+            renderToolingTable();
+        }
 
-            if (!data || data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Nenhuma solicitação encontrada.</td></tr>`;
+        function renderToolingTable() {
+            const tableBody = document.getElementById('manage-tooling-table-body');
+            if(!tableBody) return;
+
+            let filtered = allToolingRequestsCache;
+            if (currentToolingStatusFilter !== 'all') {
+                filtered = allToolingRequestsCache.filter(req => req.status === currentToolingStatusFilter);
+            }
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Nenhuma solicitação encontrada para este filtro.</td></tr>`;
                 return;
             }
 
             const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
 
-            tableBody.innerHTML = data.map(req => {
+            tableBody.innerHTML = filtered.map(req => {
                 let statusClass = `status-${req.status}`;
+                
+                let btnDetalhes = `<button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openToolingDetailsModal('${req.id}')">Detalhes</button>`;
                 let btnAcao = '';
                 
                 if (req.status === 'pending') {
                     btnAcao = `<button class="btn btn-warning" style="padding: 0.4rem 0.8rem;" onclick="openToolingPlanningModal('${req.id}')">Planejar</button>`;
                 } else if (req.status === 'planned') {
-                    btnAcao = `<button class="btn btn-success" style="padding: 0.4rem 0.8rem;" onclick="executeToolingRequest('${req.id}')">Executar</button>`;
-                } else {
-                    btnAcao = `<span style="color:var(--color-text-secondary); font-size: 0.8rem;">Concluído</span>`;
+                    btnAcao = `<button class="btn btn-success" style="padding: 0.4rem 0.8rem;" onclick="openToolingExecutionModal('${req.id}')">Executar</button>`;
                 }
 
                 const priorityTag = req.priority === 'Urgente' ? `<span class="tag-fino tag-urgent">Urgente</span>` : `<span class="tag-fino" style="background:var(--color-info-bg); color:var(--color-info);">Normal</span>`;
@@ -14853,10 +14932,117 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                         <td>${req.sector} - ${req.sub_sector}</td>
                         <td>${priorityTag}</td>
                         <td><span class="status-tag ${statusClass}">${statusLabels[req.status] || req.status}</span></td>
-                        <td style="text-align: right;">${btnAcao}</td>
+                        <td style="text-align: right; display:flex; gap: 0.5rem; justify-content: flex-end;">
+                            ${btnDetalhes}
+                            ${btnAcao}
+                        </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        // --- LINHA DO TEMPO (HISTÓRICO) ---
+        async function openToolingDetailsModal(requestId) {
+            const modal = document.getElementById('request-modal');
+            const modalTitle = document.getElementById('request-modal-title');
+            const modalBody = document.getElementById('request-modal-body');
+            const modalFooter = document.getElementById('request-modal-footer');
+
+            modalTitle.textContent = 'Histórico da Ferramentaria';
+            modalBody.innerHTML = '<div class="empty-state">Carregando detalhes...</div>';
+            modalFooter.innerHTML = '';
+            modal.classList.add('visible');
+
+            try {
+                const [reqRes, historyRes] = await Promise.all([
+                    supabaseClient.from('tooling_requests').select('*').eq('id', requestId).single(),
+                    supabaseClient.from('tooling_request_history').select('*').eq('request_id', requestId).order('created_at', { ascending: true })
+                ]);
+
+                if (reqRes.error) throw reqRes.error;
+                const request = reqRes.data;
+                const history = historyRes.data || [];
+
+                const statusTranslations = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
+
+                let headerHTML = `
+                    <div style="background: var(--color-background); padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--color-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <h3 style="margin:0; font-size: 1.1rem; color: var(--color-text-primary);">${request.item_description}</h3>
+                                <p style="margin: 4px 0 0 0; color: var(--color-text-secondary); font-size: 0.8rem;">Qtd: ${request.quantity} | Setor: ${request.sector}</p>
+                            </div>
+                            <span class="status-tag status-${request.status}">${statusTranslations[request.status]}</span>
+                        </div>
+                    </div>
+                `;
+                
+                let timelineHTML = `
+                    <h4 style="text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--color-text-secondary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons" style="font-size: 16px;">timeline</span> Histórico de Processamento</h4>
+                    <div style="margin-left: 15px; border-left: 2px solid var(--color-border); padding-left: 25px; position: relative;">
+                `;
+
+                // Abertura
+                timelineHTML += `
+                    <div style="margin-bottom: 2rem; position: relative;">
+                        <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-brand-primary); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-brand-primary);"></div>
+                        <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-brand-primary); letter-spacing: 0.05em;">Etapa 1: Abertura</div>
+                        <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Pedido de ferramenta registrado</div>
+                        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${request.requester_name} • ${new Date(request.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                    </div>
+                `;
+
+                // Planejamento
+                const planHistory = history.find(h => h.status === 'planned');
+                if (planHistory) {
+                    const planUser = planHistory.changed_by_name || 'Gestão';
+                    const obsMatch = planHistory.notes.match(/\|\s*Obs:\s*([^\n]+)/);
+                    const cleanObs = obsMatch ? obsMatch[1] : 'Nenhuma observação.';
+                    const planDate = new Date(planHistory.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+                    timelineHTML += `
+                        <div style="margin-bottom: 2rem; position: relative;">
+                            <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-warning); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-warning);"></div>
+                            <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-warning); letter-spacing: 0.05em;">Etapa 2: Planejamento</div>
+                            <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Entrega Agendada</div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${planUser} • ${planDate}</div>
+                            <div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+                                <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Previsão:</strong> ${request.scheduled_at ? new Date(request.scheduled_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</div>
+                                <div><strong style="color: var(--color-text-secondary);">Observações:</strong> ${cleanObs}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Execução
+                const execHistory = history.find(h => h.status === 'executed');
+                if (execHistory) {
+                    const execUser = execHistory.changed_by_name || 'Gestão';
+                    const detailMatch = execHistory.notes.match(/\|\s*Detalhes:\s*(.+)$/);
+                    const cleanDetail = detailMatch ? detailMatch[1] : 'Sem detalhes';
+                    const execDate = new Date(execHistory.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+                    timelineHTML += `
+                        <div style="margin-bottom: 2rem; position: relative;">
+                            <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-success); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-success);"></div>
+                            <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-success); letter-spacing: 0.05em;">Etapa 3: Execução</div>
+                            <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Ferramenta Entregue/Executada</div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${execUser} • ${execDate}</div>
+                            <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-success-bg); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px; border-radius: 8px;">
+                                <div><strong style="color: var(--color-success);">Relatório:</strong> ${cleanDetail}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                timelineHTML += `</div>`; 
+
+                modalBody.innerHTML = `<div style="padding: 0.5rem;">${headerHTML}${timelineHTML}</div>`;
+                modalFooter.innerHTML = `<button class="btn btn-secondary" onclick="closeRequestModal()">Fechar Painel</button>`;
+
+            } catch (error) {
+                modalBody.innerHTML = `<div class="empty-state" style="color:var(--color-danger);">${error.message}</div>`;
+            }
         }
 
         function openToolingPlanningModal(requestId) {
@@ -14867,56 +15053,72 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             document.getElementById('tooling-planning-modal').classList.add('visible');
         }
 
-      async function submitToolingPlan() {
-    const requestId = document.getElementById('tooling-plan-request-id').value;
-    const date = document.getElementById('tooling-plan-date').value;
-    const time = document.getElementById('tooling-plan-time').value;
-    const notes = document.getElementById('tooling-plan-notes').value;
+        async function submitToolingPlan() {
+            const requestId = document.getElementById('tooling-plan-request-id').value;
+            const date = document.getElementById('tooling-plan-date').value;
+            const time = document.getElementById('tooling-plan-time').value;
+            const notes = document.getElementById('tooling-plan-notes').value;
 
-    if (!date || !time) { showToast('Data e hora são obrigatórias.', 'warning'); return; }
+            if (!date || !time) { showToast('Data e hora são obrigatórias.', 'warning'); return; }
 
-    const btn = document.getElementById('tooling-planning-modal').querySelector('.btn-warning');
-    btn.disabled = true;
-
-    try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        const response = await fetch(N8N_PLAN_TOOLING_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify({
-                request_id: requestId,
-                scheduled_at: new Date(`${date}T${time}:00`).toISOString(),
-                notes: notes,
-                changed_by: currentUserProfile.id,
-                changed_by_name: currentUserProfile.full_name
-            })
-        });
-        
-        if (!response.ok) throw new Error("Falha ao salvar");
-
-        showToast('Planejamento salvo!', 'success');
-        document.getElementById('tooling-planning-modal').classList.remove('visible');
-        loadToolingManagementData();
-    } catch (e) {
-        showToast('Erro ao planejar.', 'danger');
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-        async function executeToolingRequest(requestId) {
-            const confirmed = confirm("Confirmar a execução/entrega desta ferramenta?");
-            if (!confirmed) return;
+            const btn = document.getElementById('tooling-planning-modal').querySelector('.btn-warning');
+            btn.disabled = true;
 
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
-                const now = new Date();
+                const response = await fetch(N8N_PLAN_TOOLING_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify({
+                        request_id: requestId,
+                        scheduled_at: new Date(`${date}T${time}:00`).toISOString(),
+                        notes: notes,
+                        changed_by: currentUserProfile.id,
+                        changed_by_name: currentUserProfile.full_name
+                    })
+                });
                 
+                if (!response.ok) throw new Error("Falha ao salvar");
+
+                showToast('Planejamento salvo!', 'success');
+                document.getElementById('tooling-planning-modal').classList.remove('visible');
+                loadToolingManagementData();
+            } catch (e) {
+                showToast('Erro ao planejar.', 'danger');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function openToolingExecutionModal(requestId) {
+            document.getElementById('tooling-exec-request-id').value = requestId;
+            
+            const now = new Date();
+            document.getElementById('tooling-exec-date').value = now.toISOString().split('T')[0];
+            document.getElementById('tooling-exec-time').value = now.toTimeString().split(' ')[0].substring(0,5);
+            document.getElementById('tooling-exec-notes').value = '';
+            
+            document.getElementById('tooling-execution-modal').classList.add('visible');
+        }
+
+        async function submitToolingExecution() {
+            const requestId = document.getElementById('tooling-exec-request-id').value;
+            const date = document.getElementById('tooling-exec-date').value;
+            const time = document.getElementById('tooling-exec-time').value;
+            const notes = document.getElementById('tooling-exec-notes').value;
+
+            if (!date || !time) { showToast('Data e hora real são obrigatórias.', 'warning'); return; }
+
+            const btn = document.getElementById('tooling-execution-modal').querySelector('.btn-success');
+            btn.disabled = true;
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 const payload = {
                     request_id: requestId,
-                    real_execution_date: now.toISOString().split('T')[0],
-                    real_execution_time: now.toTimeString().split(' ')[0],
-                    execution_notes: 'Finalizado via sistema',
+                    real_execution_date: date,
+                    real_execution_time: time,
+                    execution_notes: notes,
                     followed_plan: true,
                     changed_by: currentUserProfile.id,
                     changed_by_name: currentUserProfile.full_name
@@ -14929,10 +15131,14 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                 });
                 
                 if (!response.ok) throw new Error("Erro");
+                
                 showToast('Ferramenta entregue/executada!', 'success');
+                document.getElementById('tooling-execution-modal').classList.remove('visible');
                 loadToolingManagementData();
             } catch (e) {
                 showToast('Erro ao executar.', 'danger');
+            } finally {
+                btn.disabled = false;
             }
         }
 
@@ -15644,6 +15850,40 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="document.getElementById('tooling-planning-modal').classList.remove('visible')">Cancelar</button>
             <button class="btn btn-warning" onclick="submitToolingPlan()">Confirmar Planejamento</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EXECUTAR FERRAMENTARIA -->
+<div id="tooling-execution-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Executar Ferramentaria</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="document.getElementById('tooling-execution-modal').classList.remove('visible')">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">Confirme a entrega/execução deste item.</p>
+            
+            <input type="hidden" id="tooling-exec-request-id">
+            
+            <div class="grid grid-cols-2">
+                <div class="form-group">
+                    <label>Data Real*</label>
+                    <input type="date" id="tooling-exec-date" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora Real*</label>
+                    <input type="time" id="tooling-exec-time" class="input-field" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Detalhes da Execução</label>
+                <textarea id="tooling-exec-notes" class="input-field" rows="3" placeholder="Ex: Entregue para o fulano, feito ajuste X..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('tooling-execution-modal').classList.remove('visible')">Cancelar</button>
+            <button class="btn btn-success" onclick="submitToolingExecution()">Confirmar Execução</button>
         </div>
     </div>
 </div>
