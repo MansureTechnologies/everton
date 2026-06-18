@@ -14767,30 +14767,30 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
 
             tableBody.innerHTML = data.map(req => {
-                let statusClass = \`status-\${req.status}\`;
+                let statusClass = `status-${req.status}`;
                 let btnAcao = '';
                 
                 if (req.status === 'pending') {
-                    btnAcao = \`<button class="btn btn-warning" style="padding: 0.4rem 0.8rem;" onclick="openToolingPlanningModal('\${req.id}')">Planejar</button>\`;
+                    btnAcao = `<button class="btn btn-warning" style="padding: 0.4rem 0.8rem;" onclick="openToolingPlanningModal('${req.id}')">Planejar</button>`;
                 } else if (req.status === 'planned') {
-                    btnAcao = \`<button class="btn btn-success" style="padding: 0.4rem 0.8rem;" onclick="executeToolingRequest('\${req.id}')">Executar</button>\`;
+                    btnAcao = `<button class="btn btn-success" style="padding: 0.4rem 0.8rem;" onclick="executeToolingRequest('${req.id}')">Executar</button>`;
                 } else {
-                    btnAcao = \`<span style="color:var(--color-text-secondary); font-size: 0.8rem;">Concluído</span>\`;
+                    btnAcao = `<span style="color:var(--color-text-secondary); font-size: 0.8rem;">Concluído</span>`;
                 }
 
-                const priorityTag = req.priority === 'Urgente' ? \`<span class="tag-fino tag-urgent">Urgente</span>\` : \`<span class="tag-fino" style="background:var(--color-info-bg); color:var(--color-info);">Normal</span>\`;
+                const priorityTag = req.priority === 'Urgente' ? `<span class="tag-fino tag-urgent">Urgente</span>` : `<span class="tag-fino" style="background:var(--color-info-bg); color:var(--color-info);">Normal</span>`;
 
-                return \`
+                return `
                     <tr>
-                        <td>\${req.requester_name || 'N/A'}</td>
-                        <td><strong>\${req.item_description}</strong></td>
-                        <td>\${req.quantity} / \${req.stock_quantity} (est.)</td>
-                        <td>\${req.sector} - \${req.sub_sector}</td>
-                        <td>\${priorityTag}</td>
-                        <td><span class="status-tag \${statusClass}">\${statusLabels[req.status] || req.status}</span></td>
-                        <td style="text-align: right;">\${btnAcao}</td>
+                        <td>${req.requester_name || 'N/A'}</td>
+                        <td><strong>${req.item_description}</strong></td>
+                        <td>${req.quantity} / ${req.stock_quantity} (est.)</td>
+                        <td>${req.sector} - ${req.sub_sector}</td>
+                        <td>${priorityTag}</td>
+                        <td><span class="status-tag ${statusClass}">${statusLabels[req.status] || req.status}</span></td>
+                        <td style="text-align: right;">${btnAcao}</td>
                     </tr>
-                \`;
+                `;
             }).join('');
         }
 
