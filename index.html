@@ -14970,7 +14970,7 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
                                 <h3 style="margin:0; font-size: 1.1rem; color: var(--color-text-primary);">${request.item_description}</h3>
-                                <p style="margin: 4px 0 0 0; color: var(--color-text-secondary); font-size: 0.8rem;">Qtd: ${request.quantity} | Setor: ${request.sector}</p>
+                                <p style="margin: 4px 0 0 0; color: var(--color-text-secondary); font-size: 0.8rem;">ID: #${request.id.substring(0,8).toUpperCase()}</p>
                             </div>
                             <span class="status-tag status-${request.status}">${statusTranslations[request.status]}</span>
                         </div>
@@ -14982,6 +14982,26 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                     <div style="margin-left: 15px; border-left: 2px solid var(--color-border); padding-left: 25px; position: relative;">
                 `;
 
+                // Montagem dos Dados Iniciais de Abertura (Exibindo tudo que foi preenchido no Form)
+                let formDataHTML = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; margin-top: 12px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">`;
+                
+                formDataHTML += `<div style="margin-bottom: 2px;"><label style="font-size:0.55rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Quantidade Solicitada</label><span style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-primary); line-height: 1;">${request.quantity}</span></div>`;
+                
+                formDataHTML += `<div style="margin-bottom: 2px;"><label style="font-size:0.55rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Estoque Atual</label><span style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-primary); line-height: 1;">${request.stock_quantity}</span></div>`;
+                
+                formDataHTML += `<div style="margin-bottom: 2px;"><label style="font-size:0.55rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Setor Principal</label><span style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-primary); line-height: 1;">${request.sector}</span></div>`;
+                
+                formDataHTML += `<div style="margin-bottom: 2px;"><label style="font-size:0.55rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Sub-setor / Máquina</label><span style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-primary); line-height: 1;">${request.sub_sector}</span></div>`;
+                
+                let prioridadeColor = request.priority === 'Urgente' ? 'var(--color-danger)' : 'var(--color-info)';
+                formDataHTML += `<div style="margin-bottom: 2px;"><label style="font-size:0.55rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Prioridade</label><span style="font-weight: 800; font-size: 0.8rem; color: ${prioridadeColor}; line-height: 1;">${request.priority.toUpperCase()}</span></div>`;
+                
+                if (request.path_route) {
+                    formDataHTML += `<div style="grid-column: 1 / -1; margin-bottom: 2px;"><label style="font-size:0.55rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Caminho / Rota</label><span style="font-weight: 600; font-size: 0.8rem; color: var(--color-text-primary); line-height: 1;">${request.path_route}</span></div>`;
+                }
+
+                formDataHTML += `</div>`;
+
                 // Abertura
                 timelineHTML += `
                     <div style="margin-bottom: 2rem; position: relative;">
@@ -14989,6 +15009,7 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                         <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-brand-primary); letter-spacing: 0.05em;">Etapa 1: Abertura</div>
                         <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Pedido de ferramenta registrado</div>
                         <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${request.requester_name} • ${new Date(request.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                        ${formDataHTML}
                     </div>
                 `;
 
