@@ -250,32 +250,39 @@ let currentEditingKBId = null; // Controle para saber se estamos editando na KB
         }
 
         /* --- NOVOS ESTILOS PARA INTERATIVIDADE DA TABELA --- */
-        /* Efeito de hover nas linhas da tabela de manutenção */
-        #manage-maintenance-table-body tr:hover {
+        /* Efeito de hover nas linhas da tabela de manutenção e ferramentaria */
+        #manage-maintenance-table-body tr:hover,
+        #manage-tooling-table-body tr:hover {
             background-color: var(--color-background);
             transform: scale(1.01);
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transition: all 0.2s ease-out;
         }
-        #manage-maintenance-table-body tr {
+        #manage-maintenance-table-body tr,
+        #manage-tooling-table-body tr {
              transition: all 0.2s ease-out;
         }
 
-        /* Cores dinâmicas para os botões de filtro ativos */
-        #maintenance-filter-controls .btn.active {
+        /* Cores dinâmicas para os botões de filtro ativos (Manutenção E Ferramentaria) */
+        #maintenance-filter-controls .btn.active,
+        #tooling-filter-controls .btn.active {
              color: white;
              border-color: transparent;
         }
-        #maintenance-filter-controls .btn.active[data-status="all"] {
+        #maintenance-filter-controls .btn.active[data-status="all"],
+        #tooling-filter-controls .btn.active[data-status="all"] {
             background-color: var(--color-text-secondary);
         }
-        #maintenance-filter-controls .btn.active[data-status="pending"] {
+        #maintenance-filter-controls .btn.active[data-status="pending"],
+        #tooling-filter-controls .btn.active[data-status="pending"] {
             background-color: var(--color-warning);
         }
-        #maintenance-filter-controls .btn.active[data-status="planned"] {
+        #maintenance-filter-controls .btn.active[data-status="planned"],
+        #tooling-filter-controls .btn.active[data-status="planned"] {
             background-color: var(--color-info);
         }
-        #maintenance-filter-controls .btn.active[data-status="executed"] {
+        #maintenance-filter-controls .btn.active[data-status="executed"],
+        #tooling-filter-controls .btn.active[data-status="executed"] {
             background-color: var(--color-success);
         }
 
