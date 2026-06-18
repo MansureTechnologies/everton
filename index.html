@@ -2249,6 +2249,7 @@ const PERMISSION_MAPPING = {
     'view_dashboard': 'Dashboard',
     'view_messages': 'Mensagens (Envio e Visualização)',
     'view_maintenance': 'Módulo de Manutenção',
+    'view_tooling': 'Módulo de Ferramentaria',
     'view_requests': 'Requisições Gerais (RH/Outros)',
     'view_routines': 'Minhas Rotinas (Calendário)',
     'view_team': 'Equipe',
@@ -2283,6 +2284,8 @@ const PERMISSION_MAPPING = {
     // 4. Especiais / Globais
     'manage_technicians': 'Gerenciar Equipe Técnica de Manutenção',
     'manage_preventive_schedules': 'Gerenciar Calendário de Manutenção Preventiva',
+    'req_tooling': 'Solicitar Ferramentaria',
+    'mgt_tooling': 'Gerenciar Ferramentaria (Aprovar/Planejar)',
     'mgt_kb': 'Gerenciar Base de Conhecimento (Curadoria)',
 	'mgt_feedback': 'Gerenciar Feedbacks (RH)',
     'manage_processes': 'Gerenciar Processos',
@@ -3152,18 +3155,28 @@ const appHTML = `<div id="app-container">
     </div>
 </div>
                                 
-                                <!-- MÓDULO DE MANUTENÇÃO (NOVO) -->
+                                <!-- MÓDULO DE MANUTENÇÃO E FERRAMENTARIA -->
                                 <div style="background: var(--color-background); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
                                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                                         <span class="material-icons" style="font-size: 20px; color: var(--color-warning);">build</span>
                                         <label style="font-weight: 600; font-size: 0.95rem; margin: 0;">Módulo de Manutenção</label>
                                     </div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; margin-bottom: 1rem;">
                                         <label class="perm-checkbox"><input type="checkbox" id="perm-view_maintenance"><span class="perm-checkmark"></span><span class="material-icons perm-icon">visibility</span><span class="perm-text">Visualizar Módulo</span></label>
                                         <label class="perm-checkbox"><input type="checkbox" id="perm-req_maintenance"><span class="perm-checkmark"></span><span class="material-icons perm-icon">add_circle</span><span class="perm-text">Abrir Solicitações</span></label>
                                         <label class="perm-checkbox"><input type="checkbox" id="perm-mgt_maintenance"><span class="perm-checkmark"></span><span class="material-icons perm-icon">rule_folder</span><span class="perm-text">Gerenciar (Planejar)</span></label>
                                         <label class="perm-checkbox"><input type="checkbox" id="perm-manage_technicians"><span class="perm-checkmark"></span><span class="material-icons perm-icon">engineering</span><span class="perm-text">Gerenciar Técnicos</span></label>
                                         <label class="perm-checkbox" style="grid-column: 1 / -1;"><input type="checkbox" id="perm-manage_preventive_schedules"><span class="perm-checkmark"></span><span class="material-icons perm-icon">event_note</span><span class="perm-text">Gerenciar Calendário Preventivo</span></label>
+                                    </div>
+                                    
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; padding-top: 1rem; border-top: 1px dashed var(--color-border);">
+                                        <span class="material-icons" style="font-size: 20px; color: var(--color-brand-primary);">handyman</span>
+                                        <label style="font-weight: 600; font-size: 0.95rem; margin: 0;">Módulo de Ferramentaria</label>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem;">
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-view_tooling"><span class="perm-checkmark"></span><span class="material-icons perm-icon">visibility</span><span class="perm-text">Visualizar Módulo</span></label>
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-req_tooling"><span class="perm-checkmark"></span><span class="material-icons perm-icon">add_circle</span><span class="perm-text">Abrir Solicitações</span></label>
+                                        <label class="perm-checkbox" style="grid-column: 1 / -1;"><input type="checkbox" id="perm-mgt_tooling"><span class="perm-checkmark"></span><span class="material-icons perm-icon">rule_folder</span><span class="perm-text">Gerenciar Ferramentaria</span></label>
                                     </div>
                                 </div>
 
@@ -3429,12 +3442,19 @@ async function showApp() {
             isVisible = true;
         } else {
             const pageToKeyMap = {
-                'dashboard-page': 'view_dashboard', 'messages-page': 'view_messages', 'maintenance-page': 'view_maintenance',
+                'dashboard-page': 'view_dashboard', 'messages-page': 'view_messages', 
+                'maintenance-page': ['view_maintenance', 'view_tooling'], // Alterado aqui para aceitar as duas permissões
                 'requests-page': 'view_requests', 'my-routines-page': 'view_routines', 'feedback-page': 'view_feedback',
                 'team-page': 'view_team', 'organograma-page': 'view_organograma', 'rankings-page': 'view_rankings',
                 'mural-page': 'view_mural', 'kb-page': 'view_kb'
             };
-            isVisible = p.includes(pageToKeyMap[page]);
+            
+            // Verifica se a página mapeia para um array (múltiplas permissões) ou string única
+            if (Array.isArray(pageToKeyMap[page])) {
+                isVisible = pageToKeyMap[page].some(perm => p.includes(perm));
+            } else {
+                isVisible = p.includes(pageToKeyMap[page]);
+            }
         }
         link.parentElement.style.display = isVisible ? 'block' : 'none';
     });
@@ -6256,15 +6276,30 @@ function renderRequestForm(type) {
             switch (type) {
                 case 'maintenance':
                     title = 'Nova Solicitação';
+                    
+                    // Checa permissões para saber quais abas mostrar no formulário
+                    const p = currentUserProfile.permissions || [];
+                    const isAdmin = p.includes('manage_users');
+                    const canReqMaint = isAdmin || p.includes('req_maintenance');
+                    const canReqTool = isAdmin || p.includes('req_tooling');
+                    
+                    let tabsHTML = '';
+                    // Só mostra as abas se o usuário tiver acesso a MAIS DE UM formulário
+                    if (canReqMaint && canReqTool) {
+                        tabsHTML = `
+                            <div class="mgt-tabs" style="margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-bottom: 1px solid var(--color-border); padding: 1rem 1.5rem 0 1.5rem; background: var(--color-background);">
+                                <button type="button" class="mgt-tab-btn active" id="tab-btn-req-maint" onclick="switchRequestFormTab('maintenance')">Manutenção Geral</button>
+                                <button type="button" class="mgt-tab-btn" id="tab-btn-req-tooling" onclick="switchRequestFormTab('tooling')">Ferramentaria</button>
+                            </div>
+                        `;
+                    }
+                    
                     formHTML = `
-                        <!-- SISTEMA DE ABAS -->
-                        <div class="mgt-tabs" style="margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-bottom: 1px solid var(--color-border); padding: 1rem 1.5rem 0 1.5rem; background: var(--color-background);">
-                            <button type="button" class="mgt-tab-btn active" id="tab-btn-req-maint" onclick="switchRequestFormTab('maintenance')">Manutenção Geral</button>
-                            <button type="button" class="mgt-tab-btn" id="tab-btn-req-tooling" onclick="switchRequestFormTab('tooling')">Ferramentaria</button>
-                        </div>
+                        <!-- SISTEMA DE ABAS DINÂMICO -->
+                        ${tabsHTML}
 
                         <!-- FORMULÁRIO 1: MANUTENÇÃO -->
-                        <div id="request-form-maintenance" style="display: block;">
+                        <div id="request-form-maintenance" style="display: ${canReqMaint ? 'block' : 'none'};">
                             <div class="form-group">
                                 <label>1. Setor*</label>
                                 <div class="radio-group" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
@@ -6305,7 +6340,7 @@ function renderRequestForm(type) {
                         </div>
 
                         <!-- FORMULÁRIO 2: FERRAMENTARIA -->
-                        <div id="request-form-tooling" style="display: none;">
+                        <div id="request-form-tooling" style="display: ${(!canReqMaint && canReqTool) ? 'block' : 'none'};">
                             <div class="form-group">
                                 <label>1. Item solicitado*</label>
                                 <input type="text" id="tooling-item" name="tooling_item" class="input-field" placeholder="Ex: Repasse de caixinha macho...">
@@ -6356,8 +6391,8 @@ function renderRequestForm(type) {
                             </div>
                         </div>
                     `;
-                    // Define default form mode when opening maintenance modal
-                    currentRequestFormMode = 'maintenance';
+                    // Define default form mode when opening modal based on permissions
+                    currentRequestFormMode = canReqMaint ? 'maintenance' : 'tooling';
                     break;
 
                 case 'travel': 
@@ -9194,16 +9229,33 @@ function changeItemsPerPage(value) {
         async function loadMaintenancePage() {
             const p = currentUserProfile.permissions || [];
             const isAdmin = p.includes('manage_users');
+            
+            // Verificações separadas para Manutenção e Ferramentaria
+            const canViewMaintenance = isAdmin || p.includes('view_maintenance');
+            const canViewTooling = isAdmin || p.includes('view_tooling');
 
-            document.getElementById('btn-new-maintenance-request').style.display = (isAdmin || p.includes('req_maintenance')) ? 'inline-flex' : 'none';
+            // Botão "Nova Solicitação" global da página
+            const canReqMaintenance = isAdmin || p.includes('req_maintenance');
+            const canReqTooling = isAdmin || p.includes('req_tooling');
+            
+            // Configura o botão superior baseado nas permissões
+            document.getElementById('btn-new-maintenance-request').style.display = (canReqMaintenance || canReqTooling) ? 'inline-flex' : 'none';
             document.getElementById('btn-new-maintenance-request').onclick = () => renderRequestForm('maintenance');
             document.getElementById('btn-register-technician').onclick = openRegisterTechnicianModal;
             
+            // Controle das Abas Visíveis
+            document.getElementById('tab-btn-my-maintenance').style.display = canViewMaintenance ? 'block' : 'none';
             document.getElementById('tab-btn-manage-maintenance').style.display = (isAdmin || p.includes('mgt_maintenance')) ? 'block' : 'none';
             document.getElementById('tab-btn-technicians').style.display = (isAdmin || p.includes('manage_technicians')) ? 'block' : 'none';
             document.getElementById('tab-btn-preventive').style.display = (isAdmin || p.includes('manage_preventive_schedules')) ? 'block' : 'none';
-            // Exibir a aba de Ferramentaria (Vamos liberar para os mesmos gestores de manutenção por enquanto)
-            document.getElementById('tab-btn-manage-tooling').style.display = (isAdmin || p.includes('mgt_maintenance')) ? 'block' : 'none';
+            
+            // Aba de Gestão de Ferramentaria
+            document.getElementById('tab-btn-manage-tooling').style.display = (isAdmin || p.includes('mgt_tooling')) ? 'block' : 'none';
+
+            // Se ele não pode ver manutenção, esconde a div inteira do conteúdo de manutenção
+            if (!canViewMaintenance) {
+                document.getElementById('maintenance-tab-my_requests').style.display = 'none';
+            }
 
             // NOVO: Busca rápida de todas as manutenções atualmente "Aguardando Peça"
             let waitingRequestIds = new Set();
@@ -9286,8 +9338,21 @@ function changeItemsPerPage(value) {
                 loadTechnicians();
             }
 
-            const activeTab = document.querySelector('#maintenance-page .mgt-tab-btn.active')?.id || 'tab-btn-my-maintenance';
-            const tabKey = activeTab.replace('tab-btn-', '').replace('my-maintenance', 'my_requests').replace('manage-maintenance', 'manage');
+            // Definição da aba ativa padrão com base nas permissões
+            let defaultTab = 'my_requests'; // Padrão se tiver permissão de manutenção
+            if (!canViewMaintenance && canViewTooling) {
+                defaultTab = 'tooling'; // Se não pode ver manutenção, mas pode ferramenta, abre direto nela
+            }
+
+            const activeTab = document.querySelector('#maintenance-page .mgt-tab-btn.active')?.id || `tab-btn-${defaultTab}`;
+            
+            let tabKey = activeTab.replace('tab-btn-', '').replace('my-maintenance', 'my_requests').replace('manage-maintenance', 'manage');
+            
+            // Garante que o botão visual correto fique selecionado caso o sistema force a mudança
+            if (!canViewMaintenance && tabKey === 'my_requests') {
+                 tabKey = 'manage-tooling'; 
+            }
+            
             switchMaintenanceTab(tabKey);
         }    
 
