@@ -14802,7 +14802,7 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             document.getElementById('tooling-planning-modal').classList.add('visible');
         }
 
-        async function submitToolingPlan() {
+       async function submitToolingPlan() {
             const requestId = document.getElementById('tooling-plan-request-id').value;
             const date = document.getElementById('tooling-plan-date').value;
             const time = document.getElementById('tooling-plan-time').value;
@@ -14820,7 +14820,7 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
                     body: JSON.stringify({
                         request_id: requestId,
-                        scheduled_at: new Date(\`\${date}T\${time}:00\`).toISOString(),
+                        scheduled_at: new Date(`${date}T${time}:00`).toISOString(),
                         notes: notes,
                         changed_by: currentUserProfile.id,
                         changed_by_name: currentUserProfile.full_name
