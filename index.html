@@ -14802,42 +14802,42 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             document.getElementById('tooling-planning-modal').classList.add('visible');
         }
 
-       async function submitToolingPlan() {
-            const requestId = document.getElementById('tooling-plan-request-id').value;
-            const date = document.getElementById('tooling-plan-date').value;
-            const time = document.getElementById('tooling-plan-time').value;
-            const notes = document.getElementById('tooling-plan-notes').value;
+      async function submitToolingPlan() {
+    const requestId = document.getElementById('tooling-plan-request-id').value;
+    const date = document.getElementById('tooling-plan-date').value;
+    const time = document.getElementById('tooling-plan-time').value;
+    const notes = document.getElementById('tooling-plan-notes').value;
 
-            if (!date || !time) { showToast('Data e hora são obrigatórias.', 'warning'); return; }
+    if (!date || !time) { showToast('Data e hora são obrigatórias.', 'warning'); return; }
 
-            const btn = document.getElementById('tooling-planning-modal').querySelector('.btn-warning');
-            btn.disabled = true;
+    const btn = document.getElementById('tooling-planning-modal').querySelector('.btn-warning');
+    btn.disabled = true;
 
-            try {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                const response = await fetch(N8N_PLAN_TOOLING_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                    body: JSON.stringify({
-                        request_id: requestId,
-                        scheduled_at: new Date(`${date}T${time}:00`).toISOString(),
-                        notes: notes,
-                        changed_by: currentUserProfile.id,
-                        changed_by_name: currentUserProfile.full_name
-                    })
-                });
-                
-                if (!response.ok) throw new Error("Falha ao salvar");
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_PLAN_TOOLING_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                request_id: requestId,
+                scheduled_at: new Date(`${date}T${time}:00`).toISOString(),
+                notes: notes,
+                changed_by: currentUserProfile.id,
+                changed_by_name: currentUserProfile.full_name
+            })
+        });
+        
+        if (!response.ok) throw new Error("Falha ao salvar");
 
-                showToast('Planejamento salvo!', 'success');
-                document.getElementById('tooling-planning-modal').classList.remove('visible');
-                loadToolingManagementData();
-            } catch (e) {
-                showToast('Erro ao planejar.', 'danger');
-            } finally {
-                btn.disabled = false;
-            }
-        }
+        showToast('Planejamento salvo!', 'success');
+        document.getElementById('tooling-planning-modal').classList.remove('visible');
+        loadToolingManagementData();
+    } catch (e) {
+        showToast('Erro ao planejar.', 'danger');
+    } finally {
+        btn.disabled = false;
+    }
+}
 
         async function executeToolingRequest(requestId) {
             const confirmed = confirm("Confirmar a execução/entrega desta ferramenta?");
