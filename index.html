@@ -3497,7 +3497,9 @@ async function showApp() {
              adminMenuHTML += `<li><a href="#" class="nav-link" data-page="workflow-builder-page"><span class="material-icons">account_tree</span> Editor de Fluxos</a></li>`;
         }
         
-        const hasAnyGeneralMgt = p.some(perm => perm.startsWith('mgt_') && !['mgt_travel', 'mgt_maintenance'].includes(perm));
+        // CORREÇÃO: Ignorar 'mgt_tooling' além de travel e maintenance para não abrir o painel de RH indevidamente
+        const hasAnyGeneralMgt = p.some(perm => perm.startsWith('mgt_') && !['mgt_travel', 'mgt_maintenance', 'mgt_tooling', 'mgt_kb', 'mgt_feedback'].includes(perm));
+        
         if (isAdmin || hasAnyGeneralMgt || p.includes('view_management_requests')) {
             adminMenuHTML += `<li><a href="#" class="nav-link" data-page="request-management-page"><span class="material-icons">rule_folder</span> Gerenciar Requisições</a></li>`;
         }
