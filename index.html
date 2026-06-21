@@ -9972,7 +9972,7 @@ async function openRhRequestDetailsModal(requestId) {
             (currentStepInfo.approver_type === 'specific_users' && Array.isArray(currentStepInfo.approver_ids) && currentStepInfo.approver_ids.includes(currentUserProfile.id))
         );
 
-        if (myActionRequired) {
+        if (myActionRequired && !request.status.match(/approved|rejected|cancelled/)) {
             // Verifica se é uma requisição de Horas Extras e se a etapa atual é a de Cálculo
             if (request.request_type === 'overtime' && currentStepInfo && currentStepInfo.step_name.toLowerCase().includes('cálculo')) {
                 actionHtml = `
