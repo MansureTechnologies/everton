@@ -9947,78 +9947,83 @@ async function openRhRequestDetailsModal(requestId) {
                 <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${request.requester.full_name} • ${new Date(request.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
             </div>`;
 
-      history.forEach((h) => {
-    let color = 'var(--color-success)';
-    let stepTitle = `Etapa ${h.step}: ${h.step_name || 'Ação Registrada'}`;
-    
-    if (h.new_status === 'rejected') {
-        color = 'var(--color-danger)';
-        stepTitle = `ETAPA ${h.step}: REJEITADA`;
-    } else if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
-        color = 'var(--color-info)';
-    }
-
-    let detailsBoxHTML = '';
-    
-    // Tenta interpretar as notas como um objeto JSON
-    try {
-        const parsedNotes = JSON.parse(h.notes);
-        let attachmentHTML = '';
-        
-        // Se o objeto tiver um anexo, cria o link de download
-        if (parsedNotes.attachment && parsedNotes.attachment.name) {
-            attachmentHTML = `
-                <div style="margin-top: 8px;">
-                    <a href="${parsedNotes.attachment.base64}" download="${parsedNotes.attachment.name}" class="btn btn-secondary" style="padding: 0.3rem 0.7rem; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                        <span class="material-icons" style="font-size: 14px;">download</span> Baixar ${parsedNotes.attachment.name}
-                    </a>
-                </div>
-            `;
-        }
-        
-        // Adiciona o texto das observações, se houver
-        const textNotes = parsedNotes.text ? `<p style="margin: 0.5rem 0 0 0;"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${parsedNotes.text}</p>` : '';
-        
-        if (attachmentHTML || textNotes) {
-            detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">${attachmentHTML}${textNotes}</div>`;
-        }
-
-    } catch (e) {
-        // Se falhar (ou seja, as notas são texto simples), exibe como antes
-        if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
-            const p = currentUserProfile.permissions || [];
-            const canViewValues = p.includes('manage_users') || p.includes('mgt_overtime') || p.includes('mgt_promotion') || p.includes('mgt_termination');
-            
-            if (canViewValues) {
-                const valor = request.data.valor_total_calculado_rh ? `R$ ${parseFloat(request.data.valor_total_calculado_rh).toFixed(2).replace('.', ',')}` : 'N/A';
-                const horas = request.data.quantidade_horas_calculadas_rh ? `${request.data.quantidade_horas_calculadas_rh}h` : 'N/A';
-                const parecer = request.data.observacoes_rh || h.notes || 'Sem observações.';
-                
-                detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
-                    <strong>Valor:</strong> ${valor} | <strong>Horas:</strong> ${horas} <br>
-                    <strong>Parecer:</strong> ${parecer}
-                </div>`;
-            } else {
-                detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
-                    <strong>Observações:</strong> ${h.notes || 'Cálculo realizado.'}
-                </div>`;
+        // *** VERSÃO FINAL CORRIGIDA: Renderiza CADA item do histórico de forma inteligente ***
+        history.forEach((h) => {
+            let color = 'var(--color-success)';
+            let stepTitle = `Etapa ${h.step}: ${h.step_name || 'Ação Registrada'}`;
+            if (h.new_status === 'rejected') {
+                color = 'var(--color-danger)';
+                stepTitle = `ETAPA ${h.step}: REJEITADA`;
+            } else if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
+                color = 'var(--color-info)';
             }
-        } else if (h.notes) {
-            detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
-                <strong style="color: var(--color-text-secondary);">Observações:</strong> ${h.notes}
-            </div>`;
-        }
-    }
-    
-    timelineHTML += `
-        <div style="margin-bottom: 2rem; position: relative;">
-            <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: ${color}; border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px ${color};"></div>
-            <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: ${color}; letter-spacing: 0.05em;">${stepTitle}</div>
-            <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Processada por ${h.changed_by_name || 'Sistema'}</div>
-            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">${new Date(h.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
-            ${detailsBoxHTML}
-        </div>`;
-});
+
+            let detailsBoxHTML = '';
+
+            // CASO 1: A etapa é de cálculo, então mostramos os valores financeiros.
+            if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
+                const p = currentUserProfile.permissions || [];
+                const canViewValues = p.includes('manage_users') || p.includes('mgt_overtime') || p.includes('mgt_promotion') || p.includes('mgt_termination');
+
+                if (canViewValues) {
+                    const valor = request.data.valor_total_calculado_rh ? `R$ ${parseFloat(request.data.valor_total_calculado_rh).toFixed(2).replace('.', ',')}` : 'N/A';
+                    const horas = request.data.quantidade_horas_calculadas_rh ? `${request.data.quantidade_horas_calculadas_rh}h` : 'N/A';
+                    const parecer = request.data.observacoes_rh || 'Sem observações.';
+                    detailsBoxHTML = `
+                        <div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+                            <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Valor Calculado:</strong> ${valor}</div>
+                            <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Qtd. Horas:</strong> ${horas}</div>
+                            <div><strong style="color: var(--color-text-secondary);">Parecer do RH:</strong> ${parecer}</div>
+                        </div>
+                    `;
+                } else {
+                    detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);"><strong style="color: var(--color-text-secondary);">Observações:</strong> Cálculo de valores realizado e salvo pelo RH.</div>`;
+                }
+            
+            // CASO 2: A etapa pode ter observações simples ou com anexo.
+            } else {
+                try {
+                    // Tenta interpretar a observação como um objeto JSON (que contém o anexo)
+                    const parsedNotes = JSON.parse(h.notes);
+                    let attachmentHTML = '';
+                    let textHTML = '';
+
+                    // Se encontrou um anexo, cria o link de download
+                    if (parsedNotes && parsedNotes.attachment && parsedNotes.attachment.name) {
+                        attachmentHTML = `
+                            <div style="margin-bottom: 0.5rem;">
+                                <a href="${parsedNotes.attachment.base64}" download="${parsedNotes.attachment.name}" class="btn btn-secondary" style="padding: 0.3rem 0.7rem; font-size: 0.75rem;">
+                                    <span class="material-icons" style="font-size: 14px;">download</span> Baixar ${parsedNotes.attachment.name}
+                                </a>
+                            </div>
+                        `;
+                    }
+                    // Se também houver texto, adiciona o texto
+                    if (parsedNotes && parsedNotes.text) {
+                        textHTML = `<p style="margin: 0;"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${parsedNotes.text}</p>`;
+                    }
+
+                    if (attachmentHTML || textHTML) {
+                        detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">${attachmentHTML}${textHTML}</div>`;
+                    }
+
+                } catch (e) {
+                    // Se falhou (é um texto simples ou undefined/null), exibe apenas o texto se ele existir.
+                    if (h.notes && typeof h.notes === 'string') {
+                         detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${h.notes}</div>`;
+                    }
+                }
+            }
+
+            timelineHTML += `
+                <div style="margin-bottom: 2rem; position: relative;">
+                    <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: ${color}; border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px ${color};"></div>
+                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: ${color}; letter-spacing: 0.05em;">${stepTitle}</div>
+                    <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Processada por ${h.changed_by_name || 'Sistema'}</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">${new Date(h.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                    ${detailsBoxHTML}
+                </div>`;
+        });
 
         // Renderiza a Etapa Atual (Pendente)
         const currentStepInfo = requestWorkflow.find(w => w.step_order === request.current_approval_step);
@@ -10090,7 +10095,6 @@ async function openRhRequestDetailsModal(requestId) {
                     <button class="btn btn-info" onclick="submitRhActionWithAttachment('${requestId}', 'approved')">Anexar e Enviar para Gerente</button>
                 `;
             
-            // --> INÍCIO DA NOVA LÓGICA
             // LÓGICA 3: TELA DE CONFIRMAR RECEBIMENTO (PARA O GERENTE)
             } else if ((reqType === 'termination' || reqType === 'disciplinary_action') && stepNameLower.includes('recebido')) {
                 actionHtml = `
@@ -10108,7 +10112,6 @@ async function openRhRequestDetailsModal(requestId) {
                     <button class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
                     <button class="btn btn-success" onclick="submitRhRequestDecision('${requestId}', 'approved', 'Recebido pelo Gerente')">Marcar como Recebido e Finalizar</button>
                 `;
-            // <-- FIM DA NOVA LÓGICA
 
             // LÓGICA 4: TELA PADRÃO DE APROVAÇÃO
             } else {
