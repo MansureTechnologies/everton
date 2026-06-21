@@ -10019,8 +10019,12 @@ async function openRhRequestDetailsModal(requestId) {
     }
 }
 
-async function submitRhRequestDecision(requestId, decision) {
-    const notes = document.getElementById('decision-notes').value.trim();
+async function submitRhRequestDecision(requestId, decision, overrideNotes = null) {
+    const notesInput = document.getElementById('decision-notes');
+    let notes = notesInput ? notesInput.value.trim() : '';
+    if (overrideNotes) {
+        notes = notes ? `${overrideNotes} - ${notes}` : overrideNotes;
+    }
     
     if (decision === 'rejected' && !notes) {
         showToast("Por favor, informe o motivo da reprovação.", "warning");
@@ -10038,20 +10042,24 @@ async function submitRhRequestDecision(requestId, decision) {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) throw new Error("Sessão inválida.");
 
-        const url = decision === 'approved' ? N8N_APPROVE_REQUEST_URL : N8N_REJECT_REQUEST_URL;
-
-        const response = await fetch(url, {
+        // --> CORREÇÃO: Aponta para o webhook unificado e envia a decisão no corpo.
+        const response = await fetch(N8N_PROCESS_RH_APPROVAL_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
             body: JSON.stringify({ 
                 request_id: requestId,
-                approval_notes: notes,
-                changed_by: currentUserProfile.id,
-                changed_by_name: currentUserProfile.full_name
+                decision: decision, // Informa se é 'approved' ou 'rejected'
+                notes: notes,
+                approver_id: currentUserProfile.id, // O n8n vai usar o token, mas enviamos por segurança
+                approver_name: currentUserProfile.full_name
             })
         });
 
-        if (!response.ok) throw new Error("Falha na comunicação com o servidor.");
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error("Erro do servidor n8n:", errorData);
+            throw new Error("Falha na comunicação com o servidor de automação.");
+        }
 
         showToast("Decisão registrada com sucesso!", "success");
         closeRequestModal();
