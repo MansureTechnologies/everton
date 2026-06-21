@@ -9907,20 +9907,26 @@ async function openRhRequestDetailsModal(requestId) {
         // *** CORREÇÃO APLICADA: Renderiza CADA item do histórico ***
         history.forEach((h) => {
             let color = 'var(--color-success)';
-            if (h.new_status === 'rejected') color = 'var(--color-danger)';
-            if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) color = 'var(--color-info)';
+            let stepTitle = `Etapa ${h.step}: ${h.step_name || 'Ação Registrada'}`; // Define o título padrão
+
+            // --> INÍCIO DA LÓGICA DE CORREÇÃO
+            // Se o status da etapa do histórico for 'rejected', sobrescreve a cor e o título.
+            if (h.new_status === 'rejected') {
+                color = 'var(--color-danger)';
+                stepTitle = `ETAPA ${h.step}: REJEITADA`; // Define um título específico para rejeição
+            } else if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
+                color = 'var(--color-info)';
+            }
+            // <-- FIM DA LÓGICA DE CORREÇÃO
 
             let detailsBoxHTML = '';
             
-            // Verifica se a etapa atual é a de cálculo
+            // Lógica para exibir o box de cálculo (continua a mesma)
             if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
-                
-                // --> INÍCIO DA LÓGICA DE PERMISSÃO
                 const p = currentUserProfile.permissions || [];
                 const canViewValues = p.includes('manage_users') || p.includes('mgt_overtime') || p.includes('mgt_promotion') || p.includes('mgt_termination');
 
                 if (canViewValues) {
-                    // SE O USUÁRIO FOR GESTOR, MOSTRA OS DETALHES COMPLETOS
                     const valor = request.data.valor_total_calculado_rh ? `R$ ${parseFloat(request.data.valor_total_calculado_rh).toFixed(2).replace('.', ',')}` : 'N/A';
                     const horas = request.data.quantidade_horas_calculadas_rh ? `${request.data.quantidade_horas_calculadas_rh}h` : 'N/A';
                     const parecer = request.data.observacoes_rh || h.notes || 'Sem observações.';
@@ -9933,20 +9939,16 @@ async function openRhRequestDetailsModal(requestId) {
                         </div>
                     `;
                 } else {
-                    // SE O USUÁRIO FOR O SOLICITANTE, MOSTRA APENAS A OBSERVAÇÃO PADRÃO
                     detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${h.notes || 'Cálculo de valores realizado e salvo pelo RH.'}</div>`;
                 }
-                // <-- FIM DA LÓGICA DE PERMISSÃO
-
             } else if (h.notes) {
-                // Para todas as outras etapas, mantém o comportamento antigo
                 detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${h.notes}</div>`;
             }
 
             timelineHTML += `
                 <div style="margin-bottom: 2rem; position: relative;">
                     <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: ${color}; border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px ${color};"></div>
-                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: ${color}; letter-spacing: 0.05em;">Etapa ${h.step}: ${h.step_name || 'Ação Registrada'}</div>
+                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: ${color}; letter-spacing: 0.05em;">${stepTitle}</div>
                     <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Processada por ${h.changed_by_name || 'Sistema'}</div>
                     <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">${new Date(h.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
                     ${detailsBoxHTML}
