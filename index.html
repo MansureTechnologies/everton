@@ -6701,6 +6701,17 @@ function renderRequestForm(type) {
             }
 
             modalTitle.textContent = title;
+            // Adiciona a seção de anexo ao final de todos os formulários
+            const attachmentHTML = `
+                <h3 class="form-section-title" style="margin-top: 2rem;">Anexos (Opcional)</h3>
+                <div class="form-group">
+                    <label for="rh-anexo">Anexar um arquivo (PDF, Imagem, Word, Excel)</label>
+                    <input type="file" id="rh-anexo" class="input-field" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                </div>
+            `;
+            formHTML += attachmentHTML; // Concatena a seção de anexo ao formulário existente
+
+            modalTitle.textContent = title;
             modalBody.innerHTML = (type === 'maintenance' ? '' : backButtonHTML) + `<form id="dynamic-request-form">${formHTML}</form>`;
             
             modalFooter.innerHTML = `
@@ -6748,122 +6759,139 @@ if (input && window.google && google.maps.importLibrary) {
 		}
 
 async function submitRequest(event) {
-            event.preventDefault();
-            const btn = event.target;
-            const form = document.getElementById('dynamic-request-form');
-            
-            // --- CORREÇÃO: Capturamos o tipo no início da função para não perdê-lo ---
-            const typeToRefresh = currentRequestType;
+    event.preventDefault();
+    const btn = event.target;
+    const form = document.getElementById('dynamic-request-form');
+    
+    // --> INÍCIO DA LÓGICA DE ANEXO
+    const fileInput = document.getElementById('rh-anexo');
+    const file = fileInput ? fileInput.files[0] : null;
+    // <-- FIM DA LÓGICA DE ANEXO
 
-            let localValue = "";
-            if (typeToRefresh === 'travel') {
-                const hiddenLocal = form.querySelector('input[type="hidden"][name="local"]');
-                if (hiddenLocal && hiddenLocal.value) {
-                    localValue = hiddenLocal.value;
-                } else {
-                    const autocompleteEl = form.querySelector('gmp-place-autocomplete');
-                    if (autocompleteEl) {
-                        localValue = autocompleteEl.value || '';
-                    }
-                    if (!localValue) {
-                        const inputFallback = document.getElementById('req-travel-destination');
-                        if (inputFallback) localValue = inputFallback.value || '';
-                    }
-                }
+    // --- CORREÇÃO: Capturamos o tipo no início da função para não perdê-lo ---
+    const typeToRefresh = currentRequestType;
+
+    let localValue = "";
+    if (typeToRefresh === 'travel') {
+        const hiddenLocal = form.querySelector('input[type="hidden"][name="local"]');
+        if (hiddenLocal && hiddenLocal.value) {
+            localValue = hiddenLocal.value;
+        } else {
+            const autocompleteEl = form.querySelector('gmp-place-autocomplete');
+            if (autocompleteEl) {
+                localValue = autocompleteEl.value || '';
             }
-            if (!form.checkValidity()) {
-                showToast("Por favor, preencha todos os campos obrigatórios (*).", 'warning');
-                return;
-            }
-
-            if (!typeToRefresh) {
-                showToast("Tipo de requisição inválido.", "danger");
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = 'Enviando...';
-
-            try {
-                const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-                if (sessionError || !session) throw new Error("Sessão inválida. Faça login novamente.");
-                
-                const formData = new FormData(form);
-                const dataObject = {};
-                formData.forEach((value, key) => { dataObject[key] = value; });
-                
-                let webhookUrl = N8N_CREATE_REQUEST_URL;
-                let payload = {
-                    type: typeToRefresh,
-                    data: dataObject
-                };
-
-                if (typeToRefresh === 'travel') {
-                    if (selectedParticipants.length === 0) {
-                        showToast('Selecione pelo menos um participante para a viagem.', 'warning');
-                        btn.disabled = false;
-                        btn.innerHTML = 'Enviar Requisição';
-                        return;
-                    }
-                    webhookUrl = N8N_CREATE_TRAVEL_REQUEST_URL;
-                    payload = {
-                        ...dataObject,
-                        local: localValue,
-                        participantes_nomes: selectedParticipants.map(p => p.full_name).join(', '),
-                        solicitante_nome: currentUserProfile.full_name,
-                        cargo: currentUserProfile.role,
-                        setor: currentUserProfile.department
-                    };
-                    selectedParticipants = [];
-                }
-
-                const isRhRequest = Object.keys(RH_REQUEST_TYPES).includes(typeToRefresh);
-                let finalWebhookUrl = webhookUrl;
-                let finalPayload = payload;
-
-                if (isRhRequest) {
-                    finalWebhookUrl = N8N_SUBMIT_RH_REQUEST_URL;
-                    finalPayload = {
-                        request_type: typeToRefresh,
-                        data: dataObject
-                    };
-                }
-
-                const response = await fetch(finalWebhookUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify(finalPayload)
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Falha ao enviar requisição.');
-                }
-
-                showToast("Solicitação enviada com sucesso!", "success");
-                
-                closeRequestModal();
-                
-                setTimeout(() => {
-                    if (typeToRefresh === 'maintenance') {
-                        loadMaintenancePage();
-                    } else {
-                        // Agora a função loadRequests será refatorada para buscar na nova tabela
-                        loadRequests(); 
-                    }
-                }, 1500);
-
-            } catch (error) {
-                console.error("Erro ao enviar requisição:", error);
-                showToast(error.message, "danger");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Enviar Requisição';
+            if (!localValue) {
+                const inputFallback = document.getElementById('req-travel-destination');
+                if (inputFallback) localValue = inputFallback.value || '';
             }
         }
+    }
+    
+    if (!form.checkValidity()) {
+        showToast("Por favor, preencha todos os campos obrigatórios (*).", 'warning');
+        return;
+    }
+
+    if (!typeToRefresh) {
+        showToast("Tipo de requisição inválido.", "danger");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = 'Enviando...';
+
+    try {
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError || !session) throw new Error("Sessão inválida. Faça login novamente.");
+        
+        const formData = new FormData(form);
+        const dataObject = {};
+        formData.forEach((value, key) => { dataObject[key] = value; });
+        
+        // --> INÍCIO DA CONVERSÃO PARA BASE64
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            await new Promise(resolve => reader.onload = resolve);
+            
+            dataObject.anexo_nome = file.name;
+            dataObject.anexo_base64 = reader.result; // O texto Base64 é armazenado aqui
+        }
+        // <-- FIM DA CONVERSÃO PARA BASE64
+
+        let webhookUrl = N8N_CREATE_REQUEST_URL;
+        let payload = {
+            type: typeToRefresh,
+            data: dataObject
+        };
+
+        if (typeToRefresh === 'travel') {
+            if (selectedParticipants.length === 0) {
+                showToast('Selecione pelo menos um participante para a viagem.', 'warning');
+                btn.disabled = false;
+                btn.innerHTML = 'Enviar Requisição';
+                return;
+            }
+            webhookUrl = N8N_CREATE_TRAVEL_REQUEST_URL;
+            payload = {
+                ...dataObject,
+                local: localValue,
+                participantes_nomes: selectedParticipants.map(p => p.full_name).join(', '),
+                solicitante_nome: currentUserProfile.full_name,
+                cargo: currentUserProfile.role,
+                setor: currentUserProfile.department
+            };
+            selectedParticipants = [];
+        }
+
+        const isRhRequest = Object.keys(RH_REQUEST_TYPES).includes(typeToRefresh);
+        let finalWebhookUrl = webhookUrl;
+        let finalPayload = payload;
+
+        if (isRhRequest) {
+            finalWebhookUrl = N8N_SUBMIT_RH_REQUEST_URL;
+            finalPayload = {
+                request_type: typeToRefresh,
+                data: dataObject
+            };
+        }
+
+        const response = await fetch(finalWebhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(finalPayload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Falha ao enviar requisição.');
+        }
+
+        showToast("Solicitação enviada com sucesso!", "success");
+        
+        closeRequestModal();
+        
+        setTimeout(() => {
+            if (typeToRefresh === 'maintenance') {
+                loadMaintenancePage();
+            } else {
+                // Agora a função loadRequests será refatorada para buscar na nova tabela
+                loadRequests(); 
+            }
+        }, 1500);
+
+    } catch (error) {
+        console.error("Erro ao enviar requisição:", error);
+        showToast(error.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Enviar Requisição';
+    }
+}
         
         function toggleSubstituicaoFields() {
             const isSubstituicao = document.querySelector('input[name="motivo_contratacao"]:checked')?.value === 'substituicao';
@@ -9879,11 +9907,26 @@ async function openRhRequestDetailsModal(requestId) {
         
         // ---- INÍCIO DA RENDERIZAÇÃO DO CONTEÚDO ----
         
-        // Renderiza os dados da requisição original
+        // Renderiza os dados da requisição original, incluindo o link de anexo se existir
         let dataHtml = '<div style="margin-bottom: 2rem;"><h4 class="form-section-title" style="margin-top:0;">Dados da Solicitação</h4><div class="read-only-box">';
+        
+        // Verifica se existe um anexo e cria o link de download
+        if (request.data.anexo_nome && request.data.anexo_base64) {
+            dataHtml += `
+            <div style="margin-bottom: 1rem;">
+                <label style="font-size:0.75rem; color: var(--color-text-secondary); display:block; text-transform: uppercase; font-weight: 700;">Anexo</label>
+                <a href="${request.data.anexo_base64}" download="${request.data.anexo_nome}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                    <span class="material-icons" style="font-size: 16px;">download</span> Baixar ${request.data.anexo_nome}
+                </a>
+            </div>`;
+        }
+        
+        // Itera sobre os outros campos, ignorando os de anexo para não poluir a tela
         for (const [key, value] of Object.entries(request.data)) {
-            const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            dataHtml += `<p style="margin: 0.5rem 0;"><strong>${label}:</strong> ${value}</p>`;
+            if (key !== 'anexo_nome' && key !== 'anexo_base64') {
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                dataHtml += `<p style="margin: 0.5rem 0;"><strong>${label}:</strong> ${value}</p>`;
+            }
         }
         dataHtml += '</div></div>';
 
