@@ -9911,23 +9911,37 @@ async function openRhRequestDetailsModal(requestId) {
             if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) color = 'var(--color-info)';
 
             let detailsBoxHTML = '';
-            // --> INÍCIO DA LÓGICA DE CORREÇÃO
+            
+            // Verifica se a etapa atual é a de cálculo
             if (h.step_name && h.step_name.toLowerCase().includes('cálculo')) {
-                const valor = request.data.valor_total_calculado_rh ? `R$ ${parseFloat(request.data.valor_total_calculado_rh).toFixed(2).replace('.', ',')}` : 'N/A';
-                const horas = request.data.quantidade_horas_calculadas_rh ? `${request.data.quantidade_horas_calculadas_rh}h` : 'N/A';
-                const parecer = request.data.observacoes_rh || h.notes || 'Sem observações.';
                 
-                detailsBoxHTML = `
-                    <div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
-                        <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Valor Calculado:</strong> ${valor}</div>
-                        <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Qtd. Horas:</strong> ${horas}</div>
-                        <div><strong style="color: var(--color-text-secondary);">Parecer do RH:</strong> ${parecer}</div>
-                    </div>
-                `;
+                // --> INÍCIO DA LÓGICA DE PERMISSÃO
+                const p = currentUserProfile.permissions || [];
+                const canViewValues = p.includes('manage_users') || p.includes('mgt_overtime') || p.includes('mgt_promotion') || p.includes('mgt_termination');
+
+                if (canViewValues) {
+                    // SE O USUÁRIO FOR GESTOR, MOSTRA OS DETALHES COMPLETOS
+                    const valor = request.data.valor_total_calculado_rh ? `R$ ${parseFloat(request.data.valor_total_calculado_rh).toFixed(2).replace('.', ',')}` : 'N/A';
+                    const horas = request.data.quantidade_horas_calculadas_rh ? `${request.data.quantidade_horas_calculadas_rh}h` : 'N/A';
+                    const parecer = request.data.observacoes_rh || h.notes || 'Sem observações.';
+                    
+                    detailsBoxHTML = `
+                        <div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+                            <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Valor Calculado:</strong> ${valor}</div>
+                            <div style="margin-bottom: 4px;"><strong style="color: var(--color-text-secondary);">Qtd. Horas:</strong> ${horas}</div>
+                            <div><strong style="color: var(--color-text-secondary);">Parecer do RH:</strong> ${parecer}</div>
+                        </div>
+                    `;
+                } else {
+                    // SE O USUÁRIO FOR O SOLICITANTE, MOSTRA APENAS A OBSERVAÇÃO PADRÃO
+                    detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${h.notes || 'Cálculo de valores realizado e salvo pelo RH.'}</div>`;
+                }
+                // <-- FIM DA LÓGICA DE PERMISSÃO
+
             } else if (h.notes) {
+                // Para todas as outras etapas, mantém o comportamento antigo
                 detailsBoxHTML = `<div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);"><strong style="color: var(--color-text-secondary);">Observações:</strong> ${h.notes}</div>`;
             }
-            // <-- FIM DA LÓGICA DE CORREÇÃO
 
             timelineHTML += `
                 <div style="margin-bottom: 2rem; position: relative;">
