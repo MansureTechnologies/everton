@@ -10075,17 +10075,18 @@ async function openRhRequestDetailsModal(requestId) {
                     <div style="margin-top: 1.5rem; padding: 1.25rem; background: var(--color-info-bg); border-radius: 12px; border: 1px solid var(--color-info);">
                         <h4 style="margin: 0 0 1.25rem 0; color: var(--color-info); font-size: 1rem;">Ação do RH: Anexar Documento</h4>
                         <div class="form-group" style="margin: 0;">
-                            <label for="rh-action-anexo">Selecione o documento para o gerente (Obrigatório)</label>
-                            <input type="file" id="rh-action-anexo" class="input-field" required>
+                            <label>Selecione o documento para o gerente (Obrigatório)</label>
+                            <input type="file" id="rh-anexo" class="input-field" accept=".pdf,.doc,.docx,.jpg,.png" required>
                         </div>
                         <div class="form-group" style="margin-top: 1rem;">
                             <label>Observações (Opcional)</label>
-                            <textarea id="decision-notes" class="input-field" rows="2" placeholder="Instruções para o gerente..."></textarea>
+                            <textarea id="decision-notes" class="input-field" rows="2" placeholder="Adicione instruções para o gerente."></textarea>
                         </div>
                     </div>
                 `;
                 modalFooter.innerHTML = `
                     <button class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
+                    <button class="btn btn-danger" onclick="submitRhRequestDecision('${requestId}', 'rejected')">Rejeitar</button>
                     <button class="btn btn-info" onclick="submitRhActionWithAttachment('${requestId}', 'approved')">Anexar e Enviar para Gerente</button>
                 `;
             
@@ -10213,6 +10214,63 @@ async function submitRhRequestDecision(requestId, decision, overrideNotes = null
         actionBtn.innerHTML = originalText;
     } finally {
         buttons.forEach(btn => btn.disabled = false);
+    }
+}
+
+async function submitRhActionWithAttachment(requestId, decision) {
+    const fileInput = document.getElementById('rh-anexo');
+    const notes = document.getElementById('decision-notes').value.trim();
+    
+    if (!fileInput || fileInput.files.length === 0) {
+        showToast("Por favor, selecione um arquivo para anexar.", "warning");
+        return;
+    }
+
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin" style="font-size: 16px; margin-right: 5px;">sync</span> Processando...';
+
+    try {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise(resolve => reader.onload = resolve);
+        
+        let decisionDetails = {
+            text: notes,
+            attachment: {
+                name: file.name,
+                base64: reader.result
+            }
+        };
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) throw new Error("Sessão inválida.");
+
+        const response = await fetch(N8N_PROCESS_RH_APPROVAL_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ 
+                request_id: requestId,
+                decision: decision,
+                approval_notes: JSON.stringify(decisionDetails),
+                approver_id: currentUserProfile.id,
+                approver_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Falha na comunicação com o servidor.");
+
+        showToast("Documento anexado e etapa concluída!", "success");
+        closeRequestModal();
+        setTimeout(() => loadRequestManagementPage(), 1500);
+
+    } catch (error) {
+        console.error("Erro técnico:", error);
+        showToast("Erro ao processar anexo. Tente novamente.", "danger");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
