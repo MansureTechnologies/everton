@@ -10040,14 +10040,17 @@ async function openRhRequestDetailsModal(requestId) {
         );
 
         if (myActionRequired && !request.status.match(/approved|rejected|cancelled/)) {
-            // Verifica se é uma requisição de Horas Extras e se a etapa atual é a de Cálculo
-            if (request.request_type === 'overtime' && currentStepInfo && currentStepInfo.step_name.toLowerCase().includes('cálculo')) {
+            const stepNameLower = currentStepInfo.step_name.toLowerCase();
+            const reqType = request.request_type;
+            
+            // LÓGICA 1: TELA DE CÁLCULO
+            if ((reqType === 'overtime' || reqType === 'promotion' || reqType === 'termination') && (stepNameLower.includes('cálculo') || stepNameLower.includes('analisar'))) {
                 actionHtml = `
                     <div style="margin-top: 1.5rem; padding: 1.25rem; background: var(--color-warning-bg); border-radius: 12px; border: 1px solid var(--color-warning);">
-                        <h4 style="margin: 0 0 1.25rem 0; color: #92400e; font-size: 1rem;">Ação do RH: Inserir Cálculo</h4>
+                        <h4 style="margin: 0 0 1.25rem 0; color: #92400e; font-size: 1rem;">Ação do RH: Análise e Cálculo</h4>
                         <div class="grid grid-cols-2" style="gap: 1rem; margin-bottom: 1rem;">
                             <div class="form-group" style="margin: 0;">
-                                <label>Valor Total (R$)<span class="material-icons calc-info" title="Valor bruto estimado a ser pago pelas horas extras.">info</span></label>
+                                <label>Valor Total (R$)<span class="material-icons calc-info" title="Valor bruto estimado a ser pago.">info</span></label>
                                 <input type="number" id="rh-valor-total" class="input-field" step="0.01" placeholder="Ex: 250.75">
                             </div>
                             <div class="form-group" style="margin: 0;">
@@ -10057,16 +10060,57 @@ async function openRhRequestDetailsModal(requestId) {
                         </div>
                         <div class="form-group" style="margin: 0;">
                             <label>Observações (Opcional)</label>
-                            <textarea id="rh-observacoes" class="input-field" rows="2" placeholder="Adicione qualquer justificativa ou detalhe sobre o cálculo."></textarea>
+                            <textarea id="rh-observacoes" class="input-field" rows="2" placeholder="Adicione qualquer justificativa ou detalhe sobre a análise."></textarea>
                         </div>
                     </div>
                 `;
                 modalFooter.innerHTML = `
                     <button class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
-                    <button class="btn btn-warning" onclick="submitOvertimeCalculation('${requestId}')">Salvar Cálculo e Avançar</button>
+                    <button class="btn btn-warning" onclick="submitCalculation('${requestId}', '${reqType !== 'overtime'}')">Salvar Análise e Avançar</button>
                 `;
+            
+            // LÓGICA 2: TELA DE ANEXAR DOCUMENTO
+            } else if ((reqType === 'termination' || reqType === 'disciplinary_action') && stepNameLower.includes('anexar')) {
+                actionHtml = `
+                    <div style="margin-top: 1.5rem; padding: 1.25rem; background: var(--color-info-bg); border-radius: 12px; border: 1px solid var(--color-info);">
+                        <h4 style="margin: 0 0 1.25rem 0; color: var(--color-info); font-size: 1rem;">Ação do RH: Anexar Documento</h4>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="rh-action-anexo">Selecione o documento para o gerente (Obrigatório)</label>
+                            <input type="file" id="rh-action-anexo" class="input-field" required>
+                        </div>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label>Observações (Opcional)</label>
+                            <textarea id="decision-notes" class="input-field" rows="2" placeholder="Instruções para o gerente..."></textarea>
+                        </div>
+                    </div>
+                `;
+                modalFooter.innerHTML = `
+                    <button class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
+                    <button class="btn btn-info" onclick="submitRhActionWithAttachment('${requestId}', 'approved')">Anexar e Enviar para Gerente</button>
+                `;
+            
+            // --> INÍCIO DA NOVA LÓGICA
+            // LÓGICA 3: TELA DE CONFIRMAR RECEBIMENTO (PARA O GERENTE)
+            } else if ((reqType === 'termination' || reqType === 'disciplinary_action') && stepNameLower.includes('recebido')) {
+                actionHtml = `
+                    <div style="margin-top: 1.5rem; padding: 1.25rem; background: var(--color-success-bg); border-radius: 12px; border: 1px solid var(--color-success);">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--color-success); font-size: 1rem;">Ação Requerida: Confirmar Recebimento</h4>
+                        <p style="font-size: 0.9rem;">Por favor, baixe o documento anexado (se houver), colete as assinaturas e confirme o recebimento para finalizar o processo.</p>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label>Observações (Opcional)</label>
+                            <textarea id="decision-notes" class="input-field" rows="2"></textarea>
+                        </div>
+                    </div>
+                `;
+                // Reutilizamos a função de aprovação, pois "marcar como recebido" é, na prática, aprovar a etapa final.
+                modalFooter.innerHTML = `
+                    <button class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
+                    <button class="btn btn-success" onclick="submitRhRequestDecision('${requestId}', 'approved', 'Recebido pelo Gerente')">Marcar como Recebido e Finalizar</button>
+                `;
+            // <-- FIM DA NOVA LÓGICA
+
+            // LÓGICA 4: TELA PADRÃO DE APROVAÇÃO
             } else {
-                // Fluxo padrão de Aprovar / Rejeitar para as demais etapas
                 actionHtml = `
                     <div>
                         <h4 class="form-section-title">Sua Ação Nesta Etapa</h4>
