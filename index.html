@@ -1074,23 +1074,43 @@ let currentEditingKBId = null; // Controle para saber se estamos editando na KB
 
     /* --- CORREÇÃO GERAL DOS MODAIS --- */
     .modal-overlay.visible {
-        align-items: flex-end; /* Alinha o modal na base da tela */
+        align-items: center !important; /* Centraliza na tela para evitar que o <select> vaze para baixo */
+        padding: 1rem !important; /* Espaço nas bordas */
     }
     .modal-content {
-        width: 100%;
-        max-width: 100%;
-        height: 90vh; /* Ocupa 90% da altura da tela */
-        max-height: 90vh;
-        border-radius: 16px 16px 0 0; /* Bordas arredondadas apenas no topo */
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important; 
+        max-height: 85vh !important; /* Dá um respiro para as opções não vazarem */
+        border-radius: 16px !important; /* Bordas arredondadas por igual */
         display: flex;
         flex-direction: column;
+        margin: auto !important;
+        padding-bottom: 0 !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important;
+    }
+    .modal-header {
+        padding: 1.25rem 1.5rem !important;
     }
     .modal-body {
-        overflow-y: auto; /* Garante scroll dentro do corpo do modal */
+        overflow-y: auto !important;
         flex-grow: 1;
+        padding: 1.5rem !important;
+    }
+    .modal-footer {
+        padding: 1.25rem 1.5rem !important;
+    }
+    .modal-footer .btn {
+        flex: 1; /* Faz os botões dividirem o espaço e ficarem mais largos na tela */
+        justify-content: center;
+        padding: 1rem !important;
+        font-size: 1rem !important;
     }
     .modal-header .material-icons[onclick*="close"] {
         display: block; /* Garante que o 'X' esteja sempre visível */
+        background: var(--color-background);
+        border-radius: 50%;
+        padding: 4px;
     }
     /* Ajuste específico para o formulário de requisição */
     #request-modal .request-type-selection,
@@ -2269,6 +2289,7 @@ const PERMISSION_MAPPING = {
     'view_feedback': 'Módulo de Feedback (Visualizar)',
     'create_feedback': 'Módulo de Feedback (Dar Feedback)',
     'view_management_requests': 'Visualizar Gerenciamento de Requisições',
+    'view_downtime': 'Paradas de Máquina',
 
     // 2. Gerenciamento de Requisições
     'mgt_maintenance': 'Gerenciar Manutenção (Aprovar/Planejar)',
@@ -2369,6 +2390,7 @@ const appHTML = `<div id="app-container">
                         <li><a href="#" class="nav-link" data-page="mural-page"><span class="material-icons">campaign</span> Mural Cultural</a></li>
                         <li><a href="#" class="nav-link" data-page="kb-page"><span class="material-icons">school</span> Base de Conhecimento</a></li>
                         <li><a href="#" class="nav-link" data-page="feedback-page"><span class="material-icons">record_voice_over</span> Feedback</a></li>
+                        <li><a href="#" class="nav-link" data-page="downtime-page"><span class="material-icons">timer</span> Paradas</a></li>
                     </ul>
                     <div id="admin-section" style="display: none;">
                         <div class="nav-section-title">Administração</div>
@@ -3269,6 +3291,54 @@ const appHTML = `<div id="app-container">
     </div>
 </div> <!-- FECHAMENTO CORRETO DA PÁGINA DE FEEDBACK QUE ESTAVA FALTANDO -->
                 
+                <!-- NOVA PÁGINA DE PARADAS DE MÁQUINA -->
+                <div id="downtime-page" class="page-content">
+                    <div class="page-header">
+                        <div>
+                            <h1>Paradas de Máquina</h1>
+                            <p>Registro em tempo real do tempo de inatividade e histórico das máquinas.</p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button id="btn-new-downtime" class="btn btn-danger" onclick="openStartDowntimeModal()">
+                                <span class="material-icons">play_circle</span> Iniciar Parada
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ABAS -->
+                    <div class="mgt-tabs" style="margin-bottom: 1.5rem;">
+                        <button class="mgt-tab-btn active" id="btn-tab-downtime-active" onclick="switchDowntimeTab('active')">Paradas Ativas</button>
+                        <button class="mgt-tab-btn" id="btn-tab-downtime-history" onclick="switchDowntimeTab('history')">Histórico</button>
+                    </div>
+
+                    <!-- CONTEÚDO: ATIVAS -->
+                    <div id="downtime-tab-active" class="downtime-tab-content">
+                        <div id="downtime-active-list" class="grid grid-cols-2" style="gap: 1.5rem;">
+                            <div class="empty-state" style="grid-column: 1 / -1;">Carregando paradas ativas...</div>
+                        </div>
+                    </div>
+
+                    <!-- CONTEÚDO: HISTÓRICO -->
+                    <div id="downtime-tab-history" class="downtime-tab-content" style="display: none;">
+                        <div class="card" style="padding:0;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">Máquina / Setor</th>
+                                        <th style="width: 25%;">Motivo / Observação</th>
+                                        <th style="width: 20%;">Início</th>
+                                        <th style="width: 20%;">Fim</th>
+                                        <th style="width: 10%;">Duração</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="downtime-history-table-body">
+                                    <tr><td colspan="5" class="empty-state">Carregando histórico...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- NOVA PÁGINA DO CONSTRUTOR DE FLUXOS -->
                 <div id="workflow-builder-page" class="page-content">
                     <div class="page-header">
@@ -3417,6 +3487,7 @@ const appHTML = `<div id="app-container">
                                     <label class="perm-checkbox"><input type="checkbox" id="perm-view_rankings"><span class="perm-checkmark"></span><span class="material-icons perm-icon">leaderboard</span><span class="perm-text">Performance</span></label>
                                     <label class="perm-checkbox"><input type="checkbox" id="perm-view_mural"><span class="perm-checkmark"></span><span class="material-icons perm-icon">campaign</span><span class="perm-text">Mural Cultural</span></label>
 <label class="perm-checkbox"><input type="checkbox" id="perm-view_kb"><span class="perm-checkmark"></span><span class="material-icons perm-icon">school</span><span class="perm-text">Base de Conhecimento</span></label>
+<label class="perm-checkbox"><input type="checkbox" id="perm-view_downtime"><span class="perm-checkmark"></span><span class="material-icons perm-icon">timer</span><span class="perm-text">Paradas</span></label>
                                 </div>
 								
 								<!-- NOVO: MÓDULO DE FEEDBACK -->
@@ -3732,7 +3803,7 @@ async function showApp() {
                 'maintenance-page': ['view_maintenance', 'view_tooling'], // Alterado aqui para aceitar as duas permissões
                 'requests-page': 'view_requests', 'my-routines-page': 'view_routines', 'feedback-page': 'view_feedback',
                 'team-page': 'view_team', 'organograma-page': 'view_organograma', 'rankings-page': 'view_rankings',
-                'mural-page': 'view_mural', 'kb-page': 'view_kb'
+                'mural-page': 'view_mural', 'kb-page': 'view_kb', 'downtime-page': 'view_downtime'
             };
             
             // Verifica se a página mapeia para um array (múltiplas permissões) ou string única
@@ -7991,6 +8062,7 @@ function toggleRecipientSelection(user) {
                 loadWorkflowBuilderPage();
             }
             if (pageId === 'feedback-page') loadFeedbackPage();
+            if (pageId === 'downtime-page') switchDowntimeTab('active');
         }
 
         // ===================================================================
@@ -15812,11 +15884,12 @@ async function saveFeedbackGoals(btnElement) {
                 }
 
                 const priorityTag = req.priority === 'Urgente' ? `<span class="tag-fino tag-urgent">Urgente</span>` : `<span class="tag-fino" style="background:var(--color-info-bg); color:var(--color-info);">Normal</span>`;
+                const subStatusTag = req.sub_status ? `<br><span class="tag-fino" style="background: var(--color-warning-bg); color: var(--color-warning); margin-top: 4px; display: inline-block;">${req.sub_status}</span>` : '';
 
                 return `
                     <tr>
                         <td>${req.requester_name || 'N/A'}</td>
-                        <td><strong>${req.item_description}</strong></td>
+                        <td><strong>${req.item_description}</strong>${subStatusTag}</td>
                         <td>${req.quantity} / ${req.stock_quantity} (est.)</td>
                         <td>${req.sector} - ${req.sub_sector}</td>
                         <td>${priorityTag}</td>
@@ -15854,11 +15927,13 @@ async function saveFeedbackGoals(btnElement) {
 
                 const statusTranslations = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Executada', 'rejected': 'Recusada' };
 
+                const subStatusHtml = request.sub_status ? `<span class="tag-fino" style="background: var(--color-warning-bg); color: var(--color-warning); margin-left: 8px;">${request.sub_status}</span>` : '';
+                
                 let headerHTML = `
                     <div style="background: var(--color-background); padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--color-border);">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
-                                <h3 style="margin:0; font-size: 1.1rem; color: var(--color-text-primary);">${request.item_description}</h3>
+                                <h3 style="margin:0; font-size: 1.1rem; color: var(--color-text-primary); display:flex; align-items:center;">${request.item_description} ${subStatusHtml}</h3>
                                 <p style="margin: 4px 0 0 0; color: var(--color-text-secondary); font-size: 0.8rem;">ID: #${request.id.substring(0,8).toUpperCase()}</p>
                             </div>
                             <span class="status-tag status-${request.status}">${statusTranslations[request.status]}</span>
@@ -15924,6 +15999,25 @@ async function saveFeedbackGoals(btnElement) {
                     `;
                 }
 
+                // Sub-status (Aguardando)
+                const subStatusHistories = history.filter(h => h.notes && h.notes.includes('[Status Atualizado'));
+                subStatusHistories.forEach(sh => {
+                    const shDate = new Date(sh.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+                    const nameMatch = sh.notes.match(/\[Status Atualizado por:\s*(.+?)\]/);
+                    const shUser = nameMatch ? nameMatch[1] : 'Gestão';
+                    const motivoMatch = sh.notes.match(/Motivo do Aguardo:\s*(.+)/);
+                    const shMotivo = motivoMatch ? motivoMatch[1] : 'Sem motivo';
+
+                    timelineHTML += `
+                        <div style="margin-bottom: 2rem; position: relative;">
+                            <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-warning); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-warning);"></div>
+                            <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-warning); letter-spacing: 0.05em;">Atualização de Status</div>
+                            <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">${shMotivo}</div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${shUser} • ${shDate}</div>
+                        </div>
+                    `;
+                });
+
                 // Execução
                 const execHistory = history.find(h => h.status === 'executed');
                 if (execHistory) {
@@ -15987,6 +16081,7 @@ async function saveFeedbackGoals(btnElement) {
                     if (request.status === 'pending') {
                         footerActionsHTML += `<button class="btn btn-warning" onclick="openToolingPlanningModal('${request.id}')">Planejar</button>`;
                     } else if (request.status === 'planned') {
+                        footerActionsHTML += `<button class="btn btn-info" onclick="openToolingSubStatusModal('${request.id}', '${request.sub_status || ''}')"><span class="material-icons" style="font-size:16px; margin-right:4px; vertical-align:middle;">hourglass_empty</span> Status</button>`;
                         footerActionsHTML += `<button class="btn btn-success" onclick="openToolingExecutionModal('${request.id}')">Executar</button>`;
                     }
                 }
@@ -16039,13 +16134,14 @@ async function saveFeedbackGoals(btnElement) {
                 showToast('Planejamento salvo!', 'success');
                 document.getElementById('tooling-planning-modal').classList.remove('visible');
                 
-                // Atualiza a tabela geral
-                loadToolingManagementData();
-                
-                // Se o modal de detalhes estiver aberto, atualiza ele também
-                if (document.getElementById('request-modal').classList.contains('visible')) {
-                    setTimeout(() => openToolingDetailsModal(requestId), 500);
-                }
+                // Aguarda 1.5s para o n8n finalizar a gravação no banco antes de recarregar
+                setTimeout(() => {
+                    loadToolingManagementData();
+                    // Se o modal de detalhes estiver aberto, atualiza ele também
+                    if (document.getElementById('request-modal').classList.contains('visible')) {
+                        openToolingDetailsModal(requestId);
+                    }
+                }, 1500);
             } catch (e) {
                 showToast('Erro ao planejar.', 'danger');
             } finally {
@@ -16062,6 +16158,54 @@ async function saveFeedbackGoals(btnElement) {
             document.getElementById('tooling-exec-notes').value = '';
             
             document.getElementById('tooling-execution-modal').classList.add('visible');
+        }
+
+        function openToolingSubStatusModal(requestId, currentSubStatus) {
+            document.getElementById('tooling-substatus-request-id').value = requestId;
+            document.getElementById('tooling-substatus-select').value = currentSubStatus || '';
+            document.getElementById('tooling-substatus-modal').classList.add('visible');
+        }
+
+        function closeToolingSubStatusModal() {
+            document.getElementById('tooling-substatus-modal').classList.remove('visible');
+        }
+
+        async function submitToolingSubStatus() {
+            const requestId = document.getElementById('tooling-substatus-request-id').value;
+            const subStatus = document.getElementById('tooling-substatus-select').value;
+            const btn = document.querySelector('#tooling-substatus-modal .btn-warning');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                const response = await fetch('https://n8n-n8n.znxk1t.easypanel.host/webhook/set-tooling-substatus', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify({
+                        request_id: requestId,
+                        sub_status: subStatus,
+                        user_id: currentUserProfile.id,
+                        user_name: currentUserProfile.full_name
+                    })
+                });
+                
+                if (!response.ok) throw new Error("Falha ao salvar");
+
+                showToast('Status atualizado!', 'success');
+                closeToolingSubStatusModal();
+                
+                loadToolingManagementData();
+                if (document.getElementById('request-modal').classList.contains('visible')) {
+                    setTimeout(() => openToolingDetailsModal(requestId), 500);
+                }
+            } catch (e) {
+                showToast('Erro ao atualizar status.', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Status';
+            }
         }
 
         async function submitToolingExecution() {
@@ -16098,13 +16242,14 @@ async function saveFeedbackGoals(btnElement) {
                 showToast('Ferramenta entregue/executada!', 'success');
                 document.getElementById('tooling-execution-modal').classList.remove('visible');
                 
-                // Atualiza a tabela geral
-                loadToolingManagementData();
-                
-                // Se o modal de detalhes estiver aberto, atualiza ele também
-                if (document.getElementById('request-modal').classList.contains('visible')) {
-                    setTimeout(() => openToolingDetailsModal(requestId), 500);
-                }
+                // Aguarda 1.5s para o n8n finalizar a gravação no banco antes de recarregar
+                setTimeout(() => {
+                    loadToolingManagementData();
+                    // Se o modal de detalhes estiver aberto, atualiza ele também
+                    if (document.getElementById('request-modal').classList.contains('visible')) {
+                        openToolingDetailsModal(requestId);
+                    }
+                }, 1500);
             } catch (e) {
                 showToast('Erro ao executar.', 'danger');
             } finally {
@@ -17047,6 +17192,348 @@ function renderOptimizedMaintenanceTable() {
     `;
 }
 
+// ===================================================================
+// INÍCIO: MÓDULO DE APONTAMENTO DE PARADAS DE MÁQUINA
+// ===================================================================
+
+const N8N_START_DOWNTIME_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/start-machine-downtime';
+const N8N_STOP_DOWNTIME_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/stop-machine-downtime';
+
+function switchDowntimeTab(tabId) {
+    document.querySelectorAll('.downtime-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#downtime-page .mgt-tab-btn').forEach(el => el.classList.remove('active'));
+    
+    const tabContent = document.getElementById(`downtime-tab-${tabId}`);
+    if(tabContent) tabContent.style.display = 'block';
+    
+    const tabBtn = document.getElementById(`btn-tab-downtime-${tabId}`);
+    if(tabBtn) tabBtn.classList.add('active');
+
+    if (tabId === 'active') {
+        loadDowntimePage();
+    } else if (tabId === 'history') {
+        loadDowntimeHistory();
+    }
+}
+
+async function loadDowntimePage() {
+    const listContainer = document.getElementById('downtime-active-list');
+    listContainer.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><span class="material-icons refresh-spin">sync</span> Carregando paradas ativas...</div>';
+
+    try {
+        const { data: logs, error } = await supabaseClient
+            .from('machine_downtime_logs')
+            .select('*')
+            .eq('status', 'in_progress')
+            .order('started_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!logs || logs.length === 0) {
+            listContainer.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1; padding: 4rem 2rem; background: var(--color-surface); border: 1px dashed var(--color-border); border-radius: 12px;">
+                    <span class="material-icons" style="font-size: 48px; color: var(--color-success); margin-bottom: 1rem;">check_circle</span>
+                    <h3 style="margin: 0; color: var(--color-text-primary);">Tudo operando!</h3>
+                    <p style="color: var(--color-text-secondary); margin-top: 0.5rem;">Não há nenhuma máquina registrada como parada no momento.</p>
+                </div>
+            `;
+            return;
+        }
+
+        listContainer.innerHTML = logs.map(log => {
+            const reasonText = log.reason === 'Outro' ? (log.custom_reason || 'Outro') : log.reason;
+            const startDate = new Date(log.started_at).toLocaleString('pt-BR');
+            
+            return `
+                <div class="card" style="border-left: 4px solid var(--color-danger); padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                        <div>
+                            <span class="tag-fino" style="background: var(--color-danger-bg); color: var(--color-danger); margin-bottom: 0.5rem; display: inline-block;">${log.sector}</span>
+                            <h3 style="margin: 0; font-size: 1.2rem; color: var(--color-text-primary);">${log.machine_name}</h3>
+                            <p style="margin: 6px 0 0 0; color: var(--color-text-secondary); font-size: 0.9rem;">
+                                <span class="material-icons" style="font-size: 14px; vertical-align: middle;">build</span> Motivo: <strong>${reasonText}</strong>
+                            </p>
+                            <p style="margin: 4px 0 0 0; color: var(--color-text-secondary); font-size: 0.8rem;">
+                                Parada iniciada por: ${log.operator_name}
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Início da Parada</div>
+                            <div style="font-size: 1.1rem; font-weight: 800; color: var(--color-danger); margin-top: 4px;">${startDate}</div>
+                        </div>
+                    </div>
+                    <div style="border-top: 1px dashed var(--color-border); padding-top: 1rem; margin-top: 0.5rem; text-align: right;">
+                        <button class="btn btn-success" onclick="openStopDowntimeModal('${log.id}')" style="width: 100%; justify-content: center;">
+                            <span class="material-icons">play_arrow</span> Retomar Produção
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (e) {
+        console.error("Erro ao carregar paradas:", e);
+        listContainer.innerHTML = `<div class="empty-state" style="color:var(--color-danger); grid-column: 1 / -1;">Falha ao carregar paradas ativas.</div>`;
+    }
+}
+
+async function loadDowntimeHistory() {
+    const tableBody = document.getElementById('downtime-history-table-body');
+    tableBody.innerHTML = '<tr><td colspan="5" class="empty-state"><span class="material-icons refresh-spin">sync</span> Carregando histórico...</td></tr>';
+
+    try {
+        const { data: logs, error } = await supabaseClient
+            .from('machine_downtime_logs')
+            .select('*')
+            .eq('status', 'completed')
+            .order('ended_at', { ascending: false })
+            .limit(100); // Limita a 100 para não pesar muito, pode ser ajustado
+
+        if (error) throw error;
+
+        if (!logs || logs.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum histórico de parada encontrado.</td></tr>';
+            return;
+        }
+
+        tableBody.innerHTML = logs.map(log => {
+            const reasonText = log.reason === 'Outro' ? (log.custom_reason || 'Outro') : log.reason;
+            // Usa as datas reais se existirem, senão usa a data do sistema
+            const started = new Date(log.real_started_at || log.started_at).toLocaleString('pt-BR');
+            const ended = new Date(log.real_ended_at || log.ended_at).toLocaleString('pt-BR');
+            
+            let durationText = 'N/A';
+            if (log.duration_minutes !== null) {
+                const h = Math.floor(log.duration_minutes / 60);
+                const m = log.duration_minutes % 60;
+                durationText = h > 0 ? `${h}h ${m}m` : `${m} min`;
+            }
+
+            return `
+                <tr>
+                    <td>
+                        <strong>${log.machine_name}</strong><br>
+                        <span class="tag-fino" style="background: var(--color-background); color: var(--color-text-secondary); margin-top: 4px; display: inline-block;">${log.sector}</span>
+                    </td>
+                    <td>${reasonText}</td>
+                    <td>${started}</td>
+                    <td>${ended}</td>
+                    <td><strong>${durationText}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (e) {
+        console.error("Erro ao carregar histórico:", e);
+        tableBody.innerHTML = '<tr><td colspan="5" class="empty-state" style="color:var(--color-danger);">Erro ao carregar histórico.</td></tr>';
+    }
+}
+
+async function openStartDowntimeModal() {
+    const modal = document.getElementById('start-downtime-modal');
+    
+    // Garante que o acervo de máquinas esteja carregado para a lista
+    await loadMachinesForForm();
+    
+    // Reseta os campos
+    document.getElementById('downtime-sector').value = '';
+    document.getElementById('downtime-machine').innerHTML = '<option value="">-- Selecione o Setor Primeiro --</option>';
+    document.getElementById('downtime-machine-manual').style.display = 'none';
+    document.getElementById('downtime-machine-manual').value = '';
+    document.getElementById('downtime-reason').value = '';
+    document.getElementById('downtime-custom-reason').style.display = 'none';
+    document.getElementById('downtime-custom-reason').value = '';
+    
+    modal.classList.add('visible');
+}
+
+function closeStartDowntimeModal() {
+    document.getElementById('start-downtime-modal').classList.remove('visible');
+}
+
+function filterDowntimeMachines() {
+    const sector = document.getElementById('downtime-sector').value;
+    const selectMachine = document.getElementById('downtime-machine');
+    const manualInput = document.getElementById('downtime-machine-manual');
+
+    selectMachine.innerHTML = '<option value="">-- Selecione a Máquina --</option>';
+
+    if (sector === 'Outro') {
+        selectMachine.style.display = 'none';
+        manualInput.style.display = 'block';
+        manualInput.required = true;
+        selectMachine.required = false;
+        return;
+    }
+
+    selectMachine.style.display = 'block';
+    manualInput.style.display = 'none';
+    manualInput.required = false;
+    selectMachine.required = true;
+
+    // Filtra as máquinas cadastradas no sistema
+    const machines = allMachinesCache.filter(m => m.sector.toLowerCase().includes(sector.toLowerCase()) || sector.toLowerCase().includes(m.sector.toLowerCase()));
+
+    if (machines.length > 0) {
+        machines.forEach(m => {
+            selectMachine.innerHTML += `<option value="${m.name}">${m.code ? m.code + ' - ' : ''}${m.name}</option>`;
+        });
+        selectMachine.innerHTML += `<option value="Outra Máquina">Outra (Não listada)</option>`;
+    } else {
+        selectMachine.innerHTML += `<option value="Outra Máquina">Outra (Não listada)</option>`;
+    }
+}
+
+function toggleDowntimeCustomReason() {
+    const reason = document.getElementById('downtime-reason').value;
+    const customInput = document.getElementById('downtime-custom-reason');
+    if (reason === 'Outro') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+        customInput.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.body.addEventListener('change', (e) => {
+        if (e.target.id === 'downtime-machine') {
+            const manualInput = document.getElementById('downtime-machine-manual');
+            if (e.target.value === 'Outra Máquina') {
+                manualInput.style.display = 'block';
+                manualInput.required = true;
+            } else {
+                manualInput.style.display = 'none';
+                manualInput.required = false;
+            }
+        }
+    });
+});
+
+async function startMachineDowntime() {
+    const btn = event.target;
+    
+    const sector = document.getElementById('downtime-sector').value;
+    const selectMachine = document.getElementById('downtime-machine');
+    const manualMachine = document.getElementById('downtime-machine-manual');
+    const reason = document.getElementById('downtime-reason').value;
+    const customReason = document.getElementById('downtime-custom-reason').value;
+
+    let machineName = sector === 'Outro' ? manualMachine.value : selectMachine.value;
+    if (machineName === 'Outra Máquina') machineName = manualMachine.value;
+
+    if (!sector || !machineName || !reason || (reason === 'Outro' && !customReason)) {
+        showToast("Preencha todos os campos obrigatórios.", "warning");
+        return;
+    }
+
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Iniciando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        const payload = {
+            machine_name: machineName,
+            sector: sector,
+            reason: reason,
+            custom_reason: customReason || '',
+            operator_id: currentUserProfile.id,
+            operator_name: currentUserProfile.full_name
+        };
+
+        const response = await fetch(N8N_START_DOWNTIME_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("Erro ao registrar parada no servidor.");
+
+        showToast("Parada de máquina registrada com sucesso!", "success");
+        closeStartDowntimeModal();
+        
+        // Timeout longo para garantir que a inserção terminou no N8N antes de atualizar
+        setTimeout(() => switchDowntimeTab('active'), 1500); 
+
+    } catch (e) {
+        console.error(e);
+        showToast("Erro ao iniciar parada. Verifique sua conexão.", "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function openStopDowntimeModal(logId) {
+    const modal = document.getElementById('stop-downtime-modal');
+    document.getElementById('stop-downtime-id').value = logId;
+
+    // Pré-preenche o Fim com o horário AGORA
+    const nowDateObj = new Date();
+    document.getElementById('stop-downtime-end-date').value = nowDateObj.toISOString().split('T')[0];
+    document.getElementById('stop-downtime-end-time').value = nowDateObj.toTimeString().split(' ')[0].substring(0,5);
+
+    modal.classList.add('visible');
+}
+
+function closeStopDowntimeModal() {
+    document.getElementById('stop-downtime-modal').classList.remove('visible');
+}
+
+async function submitStopDowntime() {
+    const logId = document.getElementById('stop-downtime-id').value;
+    const endDate = document.getElementById('stop-downtime-end-date').value;
+    const endTime = document.getElementById('stop-downtime-end-time').value;
+
+    if (!endDate || !endTime) {
+        showToast("Preencha a data e hora real da retomada.", "warning");
+        return;
+    }
+
+    // Formatação segura da data para envio ao banco de dados
+    const realEndedAt = new Date(`${endDate}T${endTime}:00`).toISOString();
+
+    const btn = document.getElementById('btn-confirm-stop-downtime');
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        const response = await fetch(N8N_STOP_DOWNTIME_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ 
+                log_id: logId,
+                real_ended_at: realEndedAt
+            })
+        });
+
+        if (!response.ok) throw new Error("Erro ao finalizar parada no servidor.");
+
+        showToast("Máquina retomada! Tempo contabilizado no histórico.", "success");
+        closeStopDowntimeModal();
+        
+        setTimeout(() => switchDowntimeTab('active'), 1500);
+
+    } catch (e) {
+        console.error(e);
+        showToast("Erro ao finalizar. Tente novamente.", "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// ===================================================================
+// FIM: MÓDULO DE APONTAMENTO DE PARADAS DE MÁQUINA
+// ===================================================================
+
     </script>
 
 <!-- NOTES MODAL (FOR APPROVAL/REJECTION) -->
@@ -17600,6 +18087,33 @@ function renderOptimizedMaintenanceTable() {
     </div>
 </div>
 
+<!-- NOVO MODAL: DEFINIR SUB-STATUS FERRAMENTARIA -->
+<div id="tooling-substatus-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Definir Status da Ferramentaria</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeToolingSubStatusModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">Selecione o motivo pelo qual a execução desta ferramentaria está aguardando.</p>
+            <input type="hidden" id="tooling-substatus-request-id">
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Status Atual*</label>
+                <select id="tooling-substatus-select" class="input-field">
+                    <option value="Aguardando Projeto">Aguardando Projeto</option>
+                    <option value="Aguardando Material">Aguardando Material</option>
+                    <option value="Aguardando Disponibilidade de Máquina">Aguardando Disponibilidade de Máquina</option>
+                    <option value="">-- Nenhum (Remover Status/Retomar) --</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeToolingSubStatusModal()">Cancelar</button>
+            <button class="btn btn-warning" onclick="submitToolingSubStatus()">Salvar Status</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: EXECUTAR FERRAMENTARIA -->
 <div id="tooling-execution-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 450px;">
@@ -17693,6 +18207,85 @@ function renderOptimizedMaintenanceTable() {
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').classList.remove('visible')">Cancelar</button>
             <button class="btn btn-success" onclick="saveMaintenanceCause()">Salvar Classificação</button>
+        </div>
+    </div>
+</div>
+
+<!-- NOVO MODAL: INICIAR PARADA DE MÁQUINA -->
+<div id="start-downtime-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Iniciar Parada de Máquina</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeStartDowntimeModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0;">O cronômetro começará a rodar imediatamente após a confirmação.</p>
+            <div class="form-group">
+                <label for="downtime-sector">Setor*</label>
+                <select id="downtime-sector" class="input-field" required onchange="filterDowntimeMachines()">
+                    <option value="">-- Selecione o Setor --</option>
+                    <option value="Fundição">Fundição</option>
+                    <option value="Usinagem">Usinagem</option>
+                    <option value="Molas">Molas</option>
+                    <option value="Grampos">Grampos</option>
+                    <option value="Outro">Outro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="downtime-machine">Máquina*</label>
+                <select id="downtime-machine" class="input-field" required>
+                    <option value="">-- Selecione o Setor Primeiro --</option>
+                </select>
+                <input type="text" id="downtime-machine-manual" class="input-field" placeholder="Digite o nome da máquina..." style="display:none; margin-top:0.5rem;">
+            </div>
+            <div class="form-group">
+                <label for="downtime-reason">Motivo da Parada*</label>
+                <select id="downtime-reason" class="input-field" required onchange="toggleDowntimeCustomReason()">
+                    <option value="">-- Selecione o Motivo --</option>
+                    <option value="Troca de ferramenta">Troca de ferramenta (Setup)</option>
+                    <option value="Limpeza">Limpeza</option>
+                    <option value="Quebra mecânica">Quebra mecânica (Manutenção)</option>
+                    <option value="Falta de material">Falta de material</option>
+                    <option value="Falta de operador">Falta de operador</option>
+                    <option value="Outro">Outro (Especificar)</option>
+                </select>
+                <input type="text" id="downtime-custom-reason" class="input-field" placeholder="Especifique o motivo..." style="display:none; margin-top:0.5rem;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeStartDowntimeModal()">Cancelar</button>
+            <button class="btn btn-danger" onclick="startMachineDowntime()">Registrar Parada</button>
+        </div>
+    </div>
+</div>
+
+<!-- NOVO MODAL: FINALIZAR PARADA DE MÁQUINA (RETOMADA) -->
+<div id="stop-downtime-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Retomar Produção</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeStopDowntimeModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.9rem;">
+                Confirme o horário real em que a máquina voltou a operar.
+            </p>
+            <input type="hidden" id="stop-downtime-id">
+
+            <div class="grid grid-cols-2" style="margin-top: 1.5rem;">
+                <div class="form-group">
+                    <label>Data da Retomada*</label>
+                    <input type="date" id="stop-downtime-end-date" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora da Retomada*</label>
+                    <input type="time" id="stop-downtime-end-time" class="input-field" required>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeStopDowntimeModal()">Cancelar</button>
+            <button class="btn btn-success" id="btn-confirm-stop-downtime" onclick="submitStopDowntime()">Finalizar Parada</button>
         </div>
     </div>
 </div>
