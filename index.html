@@ -307,9 +307,9 @@ let currentEditingKBId = null; // Controle para saber se estamos editando na KB
         }
         #recipient-modal { z-index: 2500 !important; }
         #recipient-modal.visible { display: flex !important; z-index: 2500 !important; }
-        .modal-content { background-color: var(--color-surface); padding: 0; border-radius: 12px; width: 100%; max-width: 500px; overflow: hidden; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); }
-        .modal-body { padding: 1.5rem; } .modal-footer { padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; background-color: var(--color-background); }
+        .modal-content { background-color: var(--color-surface); padding: 0; border-radius: 12px; width: 100%; max-width: 500px; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex-grow: 1; } .modal-footer { padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; background-color: var(--color-background); flex-shrink: 0; }
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem; }
         .stat-card { display: flex; align-items: center; gap: 1rem; }
@@ -2124,6 +2124,7 @@ body.fullscreen-flow .flowchart-monitor-bar {
         const N8N_SUBMIT_RH_REQUEST_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/submit_rh_request';
         const N8N_PROCESS_RH_APPROVAL_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/process_rh_request_approval';
         const N8N_SAVE_WORKFLOW_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/save_request_workflow';
+        const N8N_SAVE_MAINTENANCE_CAUSE_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/save-maintenance-cause';
         
         // ===================================================================
         // INÍCIO: NOVAS CONSTANTES PARA ROTINAS PONTUAIS
@@ -2802,18 +2803,27 @@ const appHTML = `<div id="app-container">
                     </select>
                 </div>
                 <div style="flex-grow: 1; min-width: 200px;">
-                    <label style="font-size:0.75rem; font-weight: 700; color: var(--color-text-secondary);">Colaborador</label>
-                    <select id="task-dash-assignee" class="input-field" style="padding: 0.6rem;" onchange="loadTaskDashboardData()">
-                        <option value="all">Todos os Colaboradores</option>
-                    </select>
-                </div>
-                
-                <!-- Botão de Ação -->
-                <div style="display:flex; align-items:flex-end;">
-                   <button class="btn btn-danger" onclick="loadTaskDashboardData()" title="Aplicar Filtros" style="height: 42px; padding: 0 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
-                       <span class="material-icons" id="task-dash-refresh-icon" style="font-size: 18px;">search</span> <span>Filtrar</span>
-                   </button>
-                </div>
+                        <label style="font-size:0.75rem; font-weight: 700; color: var(--color-text-secondary);">Colaborador</label>
+                        <select id="task-dash-assignee" class="input-field" style="padding: 0.6rem;" onchange="loadTaskDashboardData()">
+                            <option value="all">Todos os Colaboradores</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtro Exclusivo de Atrasadas -->
+                    <div style="flex-grow: 1; min-width: 150px; display: flex; align-items: flex-end; min-height: 42px; padding-bottom: 0.3rem;">
+                        <label class="custom-checkbox" style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-secondary); display: flex; align-items: center;">
+                            <input type="checkbox" id="task-dash-only-overdue" onchange="toggleTaskDashDateFields()">
+                            <span class="checkbox-box" style="margin-right: 8px;"><span class="material-icons">check</span></span>
+                            Apenas Atrasadas
+                        </label>
+                    </div>
+                    
+                    <!-- Botão de Ação -->
+                    <div style="display:flex; align-items:flex-end;">
+                       <button class="btn btn-danger" onclick="loadTaskDashboardData()" title="Aplicar Filtros" style="height: 42px; padding: 0 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                           <span class="material-icons" id="task-dash-refresh-icon" style="font-size: 18px;">search</span> <span>Filtrar</span>
+                       </button>
+                    </div>
             </div>
             <!-- Atalhos de Data -->
             <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -3095,17 +3105,18 @@ const appHTML = `<div id="app-container">
                                 <input type="hidden" id="machine-id">
                                 <div class="grid grid-cols-2">
                                     <div class="form-group">
-                                        <label>Setor*</label>
-                                        <select id="machine-sector" class="input-field" required>
-                                            <option value="Mola Plana">Mola Plana</option>
-                                            <option value="Mola Helicoidal">Mola Helicoidal</option>
-                                            <option value="Grampo">Grampo</option>
-                                            <option value="Usinagem">Usinagem</option>
-                                            <option value="Fundição">Fundição</option>
-                                            <option value="Fundição Cold Box">Fundição Cold Box</option>
-                                            <option value="Ferramentaria">Ferramentaria</option>
-                                        </select>
-                                    </div>
+                                    <label>Setor*</label>
+                                    <select id="machine-sector" class="input-field" required>
+                                        <option value="Mola Plana">Mola Plana</option>
+                                        <option value="Mola Helicoidal">Mola Helicoidal</option>
+                                        <option value="Grampo">Grampo</option>
+                                        <option value="Centro de Usinagem">Centro de Usinagem</option>
+                                        <option value="Usinagem">Usinagem</option>
+                                        <option value="Fundição">Fundição</option>
+                                        <option value="Fundição Cold Box">Fundição Cold Box</option>
+                                        <option value="Ferramentaria">Ferramentaria</option>
+                                    </select>
+                                </div>
                                     <div class="form-group">
                                         <label>Código Interno</label>
                                         <input type="text" id="machine-code" class="input-field" placeholder="Ex: 1001">
@@ -6325,6 +6336,34 @@ async function openRequestDetailsModal(requestId) {
                     </div>
                 </div>
             `;
+            
+            // Lógica para renderizar a Etapa 2.1 (Causa Raiz)
+            const causeHistoryEntry = requestHistory.find(h => h.notes && h.notes.includes('[Causa Raiz Definida por:'));
+            if (causeHistoryEntry) {
+                const causeDate = new Date(causeHistoryEntry.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+                // Extrai dinamicamente as informações do texto do histórico
+                const userMatch = causeHistoryEntry.notes.match(/\[Causa Raiz Definida por:\s*(.+?)\]/);
+                const causeUser = userMatch ? userMatch[1] : 'N/A';
+
+                const causeNameMatch = causeHistoryEntry.notes.match(/Motivo:\s*([^|]+)/);
+                const causeName = causeNameMatch ? causeNameMatch[1].trim() : 'Não classificada';
+
+                const causeObsMatch = causeHistoryEntry.notes.match(/Observação:\s*(.+)/);
+                const causeObs = causeObsMatch ? causeObsMatch[1].trim() : 'Sem detalhamento.';
+
+                timelineHTML += `
+                <div style="margin-bottom: 2rem; position: relative;">
+                    <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-info); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-info);"></div>
+                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-info); letter-spacing: 0.05em;">Etapa 2.1: Classificação</div>
+                    <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Causa Raiz Definida: ${causeName}</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${causeUser} • ${causeDate}</div>
+                    <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-info-bg); border: 1px solid rgba(59, 130, 246, 0.2); padding: 10px; border-radius: 8px;">
+                        <div><strong style="color: var(--color-info);">Justificativa:</strong> ${causeObs}</div>
+                    </div>
+                </div>
+                `;
+            }
         }
         
         waitPeriods.forEach(period => {
@@ -6442,6 +6481,17 @@ async function openRequestDetailsModal(requestId) {
             } else if (request.status === 'executed') {
                 footerActionsHTML += `<button class="btn btn-secondary" onclick="openCorrectExecutionTimeModal('${request.id}')"><span class="material-icons" style="font-size:18px;">edit_calendar</span> Corrigir Hora</button>`;
                 footerActionsHTML += `<button class="btn btn-secondary" onclick="generateMaintenancePDF('${request.id}', this)"><span class="material-icons" style="font-size:18px;">picture_as_pdf</span> Exportar PDF</button>`;
+            }
+            
+            if ((request.status === 'planned' || request.status === 'executed') && !request.cause_type_id) {
+                // 1. Busca a lista de causas direto do Supabase
+                const { data: allCauses } = await supabaseClient.from('maintenance_cause_types').select('id, name');
+                
+                // 2. Escapa e transforma em string (usando fallback para array vazio caso falhe)
+                const allCausesString = JSON.stringify(allCauses || []).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                
+                // 3. Renderiza o botão com os dados corretos
+                footerActionsHTML += `<button class="btn btn-secondary" onclick='openCauseClassificationModal("${request.id}", "${request.cause_type_id || ''}", \`${allCausesString}\`)'>Classificar Causa</button>`;
             }
         }
         
@@ -6623,7 +6673,8 @@ function renderRequestForm(type) {
                                     <label><input type="radio" name="setor" value="Mola plana" required onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Mola plana</label>
                                     <label><input type="radio" name="setor" value="Mola helicoidal" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Mola helicoidal</label>
                                     <label><input type="radio" name="setor" value="Grampo" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Grampo</label>
-                                    <label><input type="radio" name="setor" value="Usinagem" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Usinagem</label>
+                                    <label><input type="radio" name="setor" value="Usinagem" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Usinagem (Geral)</label>
+                                    <label><input type="radio" name="setor" value="Centro de Usinagem" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Centro de Usinagem (CNC)</label>
                                     <label><input type="radio" name="setor" value="Fundição" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector(this.value);"> Fundição</label>
                                     <label><input type="radio" name="setor" value="Fundição Cold Box" onchange="document.getElementById('setor-outro-input').style.display='none'; document.getElementById('req-maint-setor-outro').required=false; filterMachinesBySector('Fundição CB');"> Fundição CB</label>
                                     <label><input type="radio" name="setor" value="Outra" onchange="document.getElementById('setor-outro-input').style.display='block'; document.getElementById('req-maint-setor-outro').required=true; filterMachinesBySector('');"> Outra</label>
@@ -13979,6 +14030,13 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
 
         // 2. Atalhos de Data do Calendário
         function setTaskDashDates(period) {
+            const onlyOverdueCb = document.getElementById('task-dash-only-overdue');
+            if (onlyOverdueCb) {
+                onlyOverdueCb.checked = false;
+                document.getElementById('task-dash-start-date').disabled = false;
+                document.getElementById('task-dash-end-date').disabled = false;
+            }
+
             let start = new Date();
             let end = new Date();
 
@@ -13993,6 +14051,13 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
 
             document.getElementById('task-dash-start-date').value = start.toISOString().split('T')[0];
             document.getElementById('task-dash-end-date').value = end.toISOString().split('T')[0];
+            loadTaskDashboardData();
+        }
+
+        function toggleTaskDashDateFields() {
+            const onlyOverdue = document.getElementById('task-dash-only-overdue').checked;
+            document.getElementById('task-dash-start-date').disabled = onlyOverdue;
+            document.getElementById('task-dash-end-date').disabled = onlyOverdue;
             loadTaskDashboardData();
         }
 
@@ -14016,12 +14081,13 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
             const icon = document.getElementById('task-dash-refresh-icon');
             if(icon) icon.classList.add('refresh-spin');
 
-            const startStr = document.getElementById('task-dash-start-date').value;
-            const endStr = document.getElementById('task-dash-end-date').value;
+            const onlyOverdue = document.getElementById('task-dash-only-overdue')?.checked || false;
+            const startStr = onlyOverdue ? '1970-01-01' : document.getElementById('task-dash-start-date').value;
+            const endStr = onlyOverdue ? '2099-12-31' : document.getElementById('task-dash-end-date').value;
             const deptFilter = document.getElementById('task-dash-department').value;
             const assigneeFilter = document.getElementById('task-dash-assignee').value;
 
-            if (!startStr || !endStr) {
+            if (!onlyOverdue && (!startStr || !endStr)) {
                 showToast("Por favor, selecione as datas de início e fim.", "warning");
                 if(icon) icon.classList.remove('refresh-spin');
                 return;
@@ -14038,7 +14104,12 @@ async function generateSingleFeedbackPDF(feedbackId = null) {
                 });
 
                 if (error) throw error;
-                const safeTasks = tasks || [];
+                let safeTasks = tasks || [];
+
+                // Se o filtro de apenas atrasadas estiver ativo, filtramos no lado do cliente
+                if (onlyOverdue) {
+                    safeTasks = safeTasks.filter(t => t.is_overdue && t.status !== 'completed');
+                }
 
                 // A. Renderiza os KPIs no topo
                 renderTaskDashboardKPIs(safeTasks);
@@ -16316,63 +16387,137 @@ function closeEditTechniciansModal() {
 }
 
 async function submitEditedTechnicians() {
-    const requestId = document.getElementById('edit-tech-request-id').value;
-    const notes = document.getElementById('edit-tech-notes').value.trim();
-    const btn = document.getElementById('btn-save-edited-techs');
+            const requestId = document.getElementById('edit-tech-request-id').value;
+            const notes = document.getElementById('edit-tech-notes').value.trim();
+            const btn = document.getElementById('btn-save-edited-techs');
 
-    if (selectedTechnicians.length === 0) {
-        showToast("É necessário ter pelo menos um técnico atribuído.", "warning");
-        return;
-    }
-
-    if (!notes) {
-        showToast("Por favor, informe o motivo da alteração para o histórico.", "warning");
-        return;
-    }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
-
-    // Transforma a array de volta numa string "Técnico 1, Técnico 2"
-    const technicianNames = selectedTechnicians.map(t => t.name).join(', ');
-
-    try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-
-        const payload = {
-            request_id: requestId,
-            changed_by: currentUserProfile.id,
-            changed_by_name: currentUserProfile.full_name,
-            new_technicians_string: technicianNames,
-            notes: notes
-        };
-
-        const response = await fetch(N8N_UPDATE_MAINTENANCE_TECHS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) throw new Error("Falha ao atualizar a equipe técnica.");
-
-        showToast("Equipe técnica atualizada com sucesso!", "success");
-        closeEditTechniciansModal();
-
-        // Recarrega os dados do painel de detalhes por trás e a tabela
-        setTimeout(() => {
-            openRequestDetailsModal(requestId);
-            if (document.getElementById('maintenance-tab-manage').style.display === 'block') {
-                loadMaintenancePage();
+            if (selectedTechnicians.length === 0) {
+                showToast("É necessário ter pelo menos um técnico atribuído.", "warning");
+                return;
             }
-        }, 1500);
 
-    } catch (error) {
-        showToast(error.message, "danger");
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Salvar Nova Equipe';
-    }
-}
+            if (!notes) {
+                showToast("Por favor, informe o motivo da alteração para o histórico.", "warning");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+
+            // Transforma a array de volta numa string "Técnico 1, Técnico 2"
+            const technicianNames = selectedTechnicians.map(t => t.name).join(', ');
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+
+                const payload = {
+                    request_id: requestId,
+                    changed_by: currentUserProfile.id,
+                    changed_by_name: currentUserProfile.full_name,
+                    new_technicians_string: technicianNames,
+                    notes: notes
+                };
+
+                const response = await fetch(N8N_UPDATE_MAINTENANCE_TECHS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("Falha ao atualizar a equipe técnica.");
+
+                showToast("Equipe técnica atualizada com sucesso!", "success");
+                closeEditTechniciansModal();
+
+                // Recarrega os dados do painel de detalhes por trás e a tabela
+                setTimeout(() => {
+                    openRequestDetailsModal(requestId);
+                    if (document.getElementById('maintenance-tab-manage').style.display === 'block') {
+                        loadMaintenancePage();
+                    }
+                }, 1500);
+
+            } catch (error) {
+                showToast(error.message, "danger");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Nova Equipe';
+            }
+        }
+
+        // ===================================================================
+        // INÍCIO: FUNÇÕES PARA CLASSIFICAÇÃO DE CAUSA (FEATURE #4)
+        // ===================================================================
+
+        function openCauseClassificationModal(requestId, currentCauseId, allCausesString) {
+            const modal = document.getElementById('cause-classification-modal');
+            document.getElementById('classification-request-id').value = requestId;
+            
+            const select = document.getElementById('cause-type-select');
+            select.innerHTML = '<option value="">-- Selecione uma Causa --</option>';
+            
+            const allCauses = JSON.parse(allCausesString.replace(/&quot;/g, '"'));
+
+            allCauses.forEach(cause => {
+                const option = document.createElement('option');
+                option.value = cause.id;
+                option.textContent = cause.name;
+                if (cause.id === currentCauseId) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+
+            modal.classList.add('visible');
+        }
+
+        async function saveMaintenanceCause() {
+            const requestId = document.getElementById('classification-request-id').value;
+            const causeId = document.getElementById('cause-type-select').value;
+            const observation = document.getElementById('cause-classification-notes').value.trim();
+            const btn = document.querySelector('#cause-classification-modal .btn-success');
+            
+            if (!causeId) {
+                showToast("Por favor, selecione uma causa da lista.", "warning");
+                return;
+            }
+            if (!observation) {
+                showToast("A observação é obrigatória para classificar a causa.", "warning");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+            
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                const response = await fetch(N8N_SAVE_MAINTENANCE_CAUSE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify({
+                        request_id: requestId,
+                        cause_type_id: causeId,
+                        observation: observation, // Campo Adicionado
+                        user_id: currentUserProfile.id,
+                        user_name: currentUserProfile.full_name
+                    })
+                });
+
+                if (!response.ok) throw new Error("Falha ao salvar a classificação.");
+
+                showToast("Causa da manutenção salva com sucesso!", "success");
+                document.getElementById('cause-classification-modal').classList.remove('visible');
+
+                // Atualiza o modal de detalhes para exibir a nova informação
+                setTimeout(() => openRequestDetailsModal(requestId), 1500);
+
+            } catch(e) {
+                showToast("Erro ao salvar: " + e.message, "danger");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Classificação';
+            }
+        }
 // ===================================================================
 // FIM: FUNÇÕES PARA EDITAR TÉCNICOS
 // ===================================================================
@@ -16412,7 +16557,7 @@ function filterMachinesBySector(sectorName) {
         return;
     }
     
-    // Filtra pelo setor exato
+    // Filtra pelo setor exato para TODOS os casos, incluindo Centro de Usinagem
     const filtered = allMachinesCache.filter(m => m.sector.toLowerCase() === sectorName.toLowerCase());
 
     const searchInput = document.getElementById('machine-quick-search');
@@ -16434,7 +16579,7 @@ function filterMachinesBySector(sectorName) {
             searchInput.disabled = true;
             searchInput.value = '';
         }
-        listContainer.innerHTML = '<div class="empty-state" style="padding: 0.5rem; font-size: 0.8rem; margin: 0;">Nenhuma máquina cadastrada neste setor. Digite no campo abaixo.</div>';
+        listContainer.innerHTML = '<div class="empty-state" style="padding: 0.5rem; font-size: 0.8rem; margin: 0;">Nenhuma máquina cadastrada para este filtro.</div>';
     }
     
     updateFinalEquipField();
@@ -17520,6 +17665,34 @@ function renderOptimizedMaintenanceTable() {
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeEditTechniciansModal()">Cancelar</button>
             <button class="btn btn-danger" id="btn-save-edited-techs" onclick="submitEditedTechnicians()">Salvar Nova Equipe</button>
+        </div>
+    </div>
+</div>
+
+<!-- NOVO MODAL: CLASSIFICAR CAUSA DA MANUTENÇÃO -->
+<div id="cause-classification-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Classificar Causa da Manutenção</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="this.closest('.modal-overlay').classList.remove('visible')">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0;">Selecione o motivo principal que originou esta solicitação de manutenção.</p>
+            <input type="hidden" id="classification-request-id">
+            <div class="form-group">
+                <label for="cause-type-select">Causa Raiz*</label>
+                <select id="cause-type-select" class="input-field" required>
+                    <option value="">-- Selecione uma Causa --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cause-classification-notes">Observação / Detalhamento*</label>
+                <textarea id="cause-classification-notes" class="input-field" rows="3" placeholder="Justifique a escolha da causa. Ex: Foi verificado que o operador..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').classList.remove('visible')">Cancelar</button>
+            <button class="btn btn-success" onclick="saveMaintenanceCause()">Salvar Classificação</button>
         </div>
     </div>
 </div>
