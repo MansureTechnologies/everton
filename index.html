@@ -2939,6 +2939,7 @@ const appHTML = `<div id="app-container">
                                         <option value="Maquina rodando, mas com risco">Rodando com Risco</option>
                                         <option value="Maquina rodando normal (preventiva)">Rodando Normal (Preventiva)</option>
                                         <option value="Manutenção infraestrutura">Manutenção Infraestrutura</option>
+                                        <option value="Manutenção de melhoria">Manutenção de Melhoria</option>
                                     </select>
                                 </div>
                                 <div class="form-group" style="margin: 0; flex: 2; min-width: 250px;">
@@ -6793,6 +6794,7 @@ function renderRequestForm(type) {
                                     <label><input type="radio" name="situacao_maquina" value="Maquina rodando, mas com risco"> Maquina rodando, mas com risco</label>
                                     <label><input type="radio" name="situacao_maquina" value="Maquina rodando normal (preventiva)"> Maquina rodando normal (preventiva)</label>
                                     <label><input type="radio" name="situacao_maquina" value="Manutenção infraestrutura"> Manutenção infraestrutura</label>
+                                    <label><input type="radio" name="situacao_maquina" value="Manutenção de melhoria"> Manutenção de melhoria</label>
                                 </div>
                             </div>
                         </div>
@@ -17890,6 +17892,7 @@ async function submitStopDowntime() {
                     <label class="custom-checkbox"><input type="checkbox" name="rep-maint-situation" value="Maquina rodando, mas com risco" checked><span class="checkbox-box"><span class="material-icons">check</span></span><span class="checkbox-label">Rodando com Risco</span></label>
                     <label class="custom-checkbox"><input type="checkbox" name="rep-maint-situation" value="Maquina rodando normal (preventiva)" checked><span class="checkbox-box"><span class="material-icons">check</span></span><span class="checkbox-label">Rodando Normal (Preventiva)</span></label>
                     <label class="custom-checkbox"><input type="checkbox" name="rep-maint-situation" value="Manutenção infraestrutura" checked><span class="checkbox-box"><span class="material-icons">check</span></span><span class="checkbox-label">Infraestrutura</span></label>
+                    <label class="custom-checkbox"><input type="checkbox" name="rep-maint-situation" value="Manutenção de melhoria" checked><span class="checkbox-box"><span class="material-icons">check</span></span><span class="checkbox-label">Manutenção de Melhoria</span></label>
                 </div>
             </div>
 
@@ -18224,11 +18227,14 @@ async function submitStopDowntime() {
                 <label for="downtime-sector">Setor*</label>
                 <select id="downtime-sector" class="input-field" required onchange="filterDowntimeMachines()">
                     <option value="">-- Selecione o Setor --</option>
+                    <option value="Mola Plana">Mola plana</option>
+                    <option value="Mola Helicoidal">Mola helicoidal</option>
+                    <option value="Grampo">Grampo</option>
+                    <option value="Usinagem">Usinagem (Geral)</option>
+                    <option value="Centro de Usinagem">Centro de Usinagem (CNC)</option>
                     <option value="Fundição">Fundição</option>
-                    <option value="Usinagem">Usinagem</option>
-                    <option value="Molas">Molas</option>
-                    <option value="Grampos">Grampos</option>
-                    <option value="Outro">Outro</option>
+                    <option value="Fundição Cold Box">Fundição CB</option>
+                    <option value="Outro">Outra</option>
                 </select>
             </div>
             <div class="form-group">
