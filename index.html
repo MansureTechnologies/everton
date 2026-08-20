@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -2921,6 +2922,7 @@ const appHTML = `<div id="app-container">
                                 <button class="btn btn-secondary" data-status="planned">Planejadas</button>
                                 <button class="btn btn-secondary" data-status="waiting_part">Aguardando Peça</button>
                                 <button class="btn btn-secondary" data-status="executed">Executadas</button>
+                                <button class="btn btn-secondary" data-status="rejected">Recusadas</button>
                             </div>
 
                             <!-- Filtros Avançados -->
@@ -3321,6 +3323,11 @@ const appHTML = `<div id="app-container">
 
                     <!-- CONTEÚDO: HISTÓRICO -->
                     <div id="downtime-tab-history" class="downtime-tab-content" style="display: none;">
+                        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                            <button class="btn btn-secondary" onclick="exportDowntimeHistoryToExcel()">
+                                <span class="material-icons" style="font-size: 18px; margin-right: 5px; color: #1D6F42;">table_view</span> Exportar para Excel
+                            </button>
+                        </div>
                         <div class="card" style="padding:0;">
                             <table class="data-table">
                                 <thead>
@@ -6838,6 +6845,7 @@ function renderRequestForm(type) {
                                     <select id="tooling-sector" name="tooling_sector" class="input-field" onchange="updateToolingSubSectors()">
                                         <option value="">Selecione o Setor</option>
                                         <option value="Molas">Molas</option>
+                                        <option value="Helicoidais">Helicoidais</option>
                                         <option value="Fundição Areia Verde">Fundição Areia Verde</option>
                                         <option value="Fundição Cold Box">Fundição Cold Box</option>
                                         <option value="Usinagem">Usinagem</option>
@@ -9857,6 +9865,7 @@ function changeItemsPerPage(value) {
         function clearAdvancedMaintenanceFilters() {
             document.getElementById('filter-maint-requester').value = 'all';
             document.getElementById('filter-maint-situation').value = 'all';
+            document.getElementById('filter-maint-status').value = 'all'; // Limpa o novo filtro
             document.getElementById('filter-maint-date-start').value = '';
             document.getElementById('filter-maint-date-end').value = '';
             applyAdvancedMaintenanceFilters();
@@ -10148,22 +10157,45 @@ async function runMaintenanceReport(type) {
         
             let filtered = allMaintenanceRequestsCache;
             
-            // LÓGICA DE FILTRAGEM CORRIGIDA E REFORÇADA
+            // 1. FILTRO DE STATUS (Botões superiores)
             if (currentMaintenanceStatusFilter !== 'all') {
-                if (currentMaintenanceStatusFilter === 'waiting_part') {
-                    // Se clicou em "Aguardando Peça", ignora o status do banco e olha só para a nossa flag visual
-                    filtered = allMaintenanceRequestsCache.filter(req => req.is_waiting_part);
-                } else if (currentMaintenanceStatusFilter === 'pending') {
-                    // Filtra pendentes que NÃO estão aguardando peça
-                    filtered = allMaintenanceRequestsCache.filter(req => (req.status === 'pending' || req.status === 'pending_manager_check') && !req.is_waiting_part);
+                if (currentMaintenanceStatusFilter === 'pending') {
+                    filtered = allMaintenanceRequestsCache.filter(req => (req.status === 'pending' || req.status === 'pending_manager_check') && req.is_waiting_part !== true);
+                } else if (currentMaintenanceStatusFilter === 'waiting_part') {
+                    filtered = allMaintenanceRequestsCache.filter(req => req.is_waiting_part === true);
                 } else if (currentMaintenanceStatusFilter === 'planned') {
-                    // Filtra planejadas que NÃO estão aguardando peça
-                    filtered = allMaintenanceRequestsCache.filter(req => req.status === 'planned' && !req.is_waiting_part);
+                    filtered = allMaintenanceRequestsCache.filter(req => req.status === 'planned' && req.is_waiting_part !== true);
                 } else {
-                    // Outros status (Executadas, Recusadas)
                     filtered = allMaintenanceRequestsCache.filter(req => req.status === currentMaintenanceStatusFilter);
                 }
             }
+            
+            // 2. FILTROS AVANÇADOS (Selects e Datas)
+            const reqFilter = document.getElementById('filter-maint-requester')?.value || 'all';
+            const sitFilter = document.getElementById('filter-maint-situation')?.value || 'all';
+            const dateStart = document.getElementById('filter-maint-date-start')?.value;
+            const dateEnd = document.getElementById('filter-maint-date-end')?.value;
+
+            filtered = filtered.filter(req => {
+                // Filtro Solicitante
+                const matchReq = (reqFilter === 'all') || (req.requester_name === reqFilter);
+                
+                // Filtro Situação da Máquina
+                const matchSit = (sitFilter === 'all') || (req.data?.situacao_maquina === sitFilter);
+                
+                // Filtro Data (Início e Fim)
+                let matchDate = true;
+                if (dateStart) {
+                    const start = new Date(dateStart + 'T00:00:00');
+                    if (new Date(req.created_at) < start) matchDate = false;
+                }
+                if (dateEnd) {
+                    const end = new Date(dateEnd + 'T23:59:59');
+                    if (new Date(req.created_at) > end) matchDate = false;
+                }
+
+                return matchReq && matchSit && matchDate;
+            });
             
             const totalPages = Math.ceil(filtered.length / maintenanceItemsPerPage);
             currentMaintenancePage = Math.min(Math.max(1, currentMaintenancePage), totalPages || 1);
@@ -10184,14 +10216,12 @@ async function runMaintenanceReport(type) {
                 let statusClass = `status-${req.status}`;
                 if (req.status === 'pending_manager_check') statusClass = 'status-pending';
                 
-                // Sobrescreve o status visual se estiver aguardando peça
                 if (req.is_waiting_part) {
                     statusLabel = 'Aguardando Peça';
                     statusClass = 'status-waiting-part';
                 }
                 
                 const date = new Date(req.created_at).toLocaleDateString('pt-BR');
-                
                 let technicians;
                 if (req.status === 'pending' || req.status === 'pending_manager_check') {
                     technicians = `<span style="color: var(--color-text-secondary); font-style: italic;">Pendente</span>`;
@@ -10210,7 +10240,6 @@ async function runMaintenanceReport(type) {
                 const btnVerDetalhes = `<div style="width: 110px;"><button class="btn btn-secondary" onclick="openRequestDetailsModal('${req.id}')">Ver Detalhes</button></div>`;
                 let btnAcao = `<div style="width: 110px;"></div>`;
                 
-                // Se estiver aguardando peça, não exibe botões de ação rápida (força o gestor a "Ver Detalhes" para retomar)
                 if (!req.is_waiting_part) {
                     if (req.status === 'pending' || req.status === 'pending_manager_check') {
                         btnAcao = `<div style="width: 110px;"><button class="btn btn-warning" onclick="openMaintenancePlanningModal('${req.id}')">Planejar</button></div>`;
@@ -15703,6 +15732,7 @@ async function saveFeedbackGoals(btnElement) {
 
         const toolingSectorsMap = {
             'Molas': ['Desempeno', 'Ajuste', 'Pintura', 'Shot', 'Montagem', 'Corte Manual', 'Corte Semi-Automático', 'Corte automático', 'Parabólica 1', 'Parabólica 2', 'Olhete 01', 'Olhete 02', '2ª Virada', 'Laminadora', 'Furo'],
+            'Helicoidais': ['Máquina de Enrolar', 'Retífica', 'Prensas', 'Fornos'],
             'Fundição Areia Verde': ['Macharia', 'Moldagem', 'Forno', 'Rebarbação'],
             'Fundição Cold Box': ['Macharia', 'Moldagem', 'Forno'],
             'Usinagem': ['Centro de Usinagem', 'CNC', 'Furadeiras', 'Artefatos', 'Grampos']
@@ -17331,6 +17361,83 @@ async function loadDowntimeHistory() {
     }
 }
 
+async function exportDowntimeHistoryToExcel() {
+    const btn = event.target.closest('button');
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Exportando...';
+    showToast('Coletando e formatando dados para o Excel...', 'info');
+
+    try {
+        // 1. Fetch ALL historical data, without limit
+        const { data: logs, error } = await supabaseClient
+            .from('machine_downtime_logs')
+            .select('*')
+            .eq('status', 'completed')
+            .order('ended_at', { ascending: false });
+
+        if (error) throw new Error("Falha ao buscar dados do histórico.");
+        if (!logs || logs.length === 0) {
+            showToast("Não há dados no histórico para exportar.", "warning");
+            return;
+        }
+
+        // 2. Prepare CSV content with SEMICOLON as separator
+        const headers = [
+            "Máquina", "Setor", "Motivo da Parada", "Observação", 
+            "Operador Início", "Início", "Operador Fim", "Fim", "Duração (min)"
+        ];
+        
+        // MODIFICADO: Usa ponto e vírgula no cabeçalho
+        let csvContent = headers.join(';') + '\n';
+
+        logs.forEach(log => {
+            const machine = log.machine_name || '';
+            const sector = log.sector || '';
+            const reason = log.reason || '';
+            const customReason = log.custom_reason || '';
+            const operatorStart = log.operator_name || 'N/A';
+            const started = log.real_started_at || log.started_at ? new Date(log.real_started_at || log.started_at).toLocaleString('pt-BR') : 'N/A';
+            const operatorEnd = 'N/A'; // This info is not in the current table, adding placeholder
+            const ended = log.real_ended_at || log.ended_at ? new Date(log.real_ended_at || log.ended_at).toLocaleString('pt-BR') : 'N/A';
+            const duration = log.duration_minutes !== null ? log.duration_minutes : 'N/A';
+
+            // Function to escape separators within fields by using quotes
+            const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+
+            const row = [
+                escape(machine), escape(sector), escape(reason), escape(customReason),
+                escape(operatorStart), escape(started), escape(operatorEnd), escape(ended), duration
+            ].join(';'); // MODIFICADO: Usa ponto e vírgula para juntar as colunas
+            
+            csvContent += row + '\n';
+        });
+
+        // 3. Trigger download
+        const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // \uFEFF for UTF-8 BOM for Excel compatibility
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `Historico_Paradas_de_Maquina_${new Date().toISOString().split('T')[0]}.csv`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        window.URL.revokeObjectURL(url);
+        a.remove();
+
+        showToast("Exportação concluída!", "success");
+
+    } catch (e) {
+        console.error("Erro ao exportar:", e);
+        showToast(e.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+    }
+}
+
 async function openStartDowntimeModal() {
     const modal = document.getElementById('start-downtime-modal');
     
@@ -17535,7 +17642,6 @@ async function submitStopDowntime() {
 // ===================================================================
 // FIM: MÓDULO DE APONTAMENTO DE PARADAS DE MÁQUINA
 // ===================================================================
-
     </script>
 
 <!-- NOTES MODAL (FOR APPROVAL/REJECTION) -->
