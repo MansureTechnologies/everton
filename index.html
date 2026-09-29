@@ -4,6 +4,10 @@
 
 
 
+
+
+
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -2363,6 +2367,7 @@ const PERMISSION_MAPPING = {
     'view_dashboard': 'Dashboard',
     'view_messages': 'Mensagens (Envio e Visualização)',
     'view_maintenance': 'Módulo de Manutenção',
+    'view_projects': 'Módulo de Projetos',
     'view_tooling': 'Módulo de Ferramentaria',
     'view_requests': 'Requisições Gerais (RH/Outros)',
     'view_routines': 'Minhas Rotinas (Calendário)',
@@ -2402,6 +2407,8 @@ const PERMISSION_MAPPING = {
     // 4. Especiais / Globais
     'manage_technicians': 'Gerenciar Equipe Técnica de Manutenção',
     'manage_preventive_schedules': 'Gerenciar Calendário de Manutenção Preventiva',
+    'req_projects': 'Solicitar Projetos',
+    'mgt_projects': 'Gerenciar Projetos (Planejar/Executar)',
     'req_tooling': 'Solicitar Ferramentaria',
     'mgt_tooling': 'Gerenciar Ferramentaria (Aprovar/Planejar)',
     'mgt_kb': 'Gerenciar Base de Conhecimento (Curadoria)',
@@ -2475,6 +2482,7 @@ const appHTML = `<div id="app-container">
                         <li><a href="#" class="nav-link" data-page="dashboard-page"><span class="material-icons">dashboard</span> Dashboard</a></li>
                         <li><a href="#" class="nav-link" data-page="messages-page"><span class="material-icons">chat</span> Mensagens</a></li>
                         <li><a href="#" class="nav-link" data-page="maintenance-page"><span class="material-icons">build</span> Manutenção</a></li>
+                        <li><a href="#" class="nav-link" data-page="projects-page"><span class="material-icons">architecture</span> Projetos</a></li>
                         <li><a href="#" class="nav-link" data-page="suprimentos-page"><span class="material-icons">inventory</span> Compras</a></li>
                         <li><a href="#" class="nav-link" data-page="requests-page"><span class="material-icons">description</span> Requisições</a></li>
                         <li><a href="#" class="nav-link" data-page="my-routines-page"><span class="material-icons">checklist</span> Minhas Rotinas</a></li>
@@ -3032,9 +3040,7 @@ const appHTML = `<div id="app-container">
 
                     <div class="mgt-tabs" style="flex-wrap: wrap;">
                         <button class="mgt-tab-btn active" id="tab-btn-my-maintenance" onclick="switchMaintenanceTab('my_requests')">Minhas (Manutenção)</button>
-                        <button class="mgt-tab-btn" id="tab-btn-my-tooling" style="display:none;" onclick="switchMaintenanceTab('my_tooling')">Minhas (Ferramentaria)</button>
                         <button class="mgt-tab-btn" id="tab-btn-manage-maintenance" style="display:none;" onclick="switchMaintenanceTab('manage')">Gestão Manutenção</button>
-                        <button class="mgt-tab-btn" id="tab-btn-manage-tooling" style="display:none;" onclick="switchMaintenanceTab('tooling')">Gestão Ferramentaria</button>
                         <button class="mgt-tab-btn" id="tab-btn-technicians" style="display:none;" onclick="switchMaintenanceTab('technicians')">Equipe Técnica</button>
                         <button class="mgt-tab-btn" id="tab-btn-machines" style="display:none;" onclick="switchMaintenanceTab('machines')">Acervo de Máquinas</button>
                         <button class="mgt-tab-btn" id="tab-btn-preventive" style="display:none;" onclick="switchMaintenanceTab('preventive')">Calendário Preventivo</button>
@@ -3167,18 +3173,90 @@ const appHTML = `<div id="app-container">
                         <div class="empty-state">Calendário de Manutenção Preventiva - Em breve.</div>
                     </div>
                     
-                    <!-- ABA: MINHAS SOLICITAÇÕES DE FERRAMENTARIA -->
-                    <div id="maintenance-tab-my_tooling" class="maintenance-tab-content" style="display:none;">
+                    </div>
+
+                <!-- ======================================================= -->
+                <!-- NOVO MÓDULO: PROJETOS E FERRAMENTARIA -->
+                <!-- ======================================================= -->
+                <div id="projects-page" class="page-content">
+                    <div class="page-header">
+                        <div>
+                            <h1>Módulo de Projetos & Ferramentaria</h1>
+                            <p>Gestão de novos projetos, revisões e solicitações de ferramentas.</p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-danger" onclick="openProjectOrToolingModal()">
+                                <span class="material-icons">add</span> Nova Solicitação
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mgt-tabs" style="flex-wrap: wrap; margin-bottom: 1.5rem;">
+                        <button class="mgt-tab-btn active" id="tab-btn-my-projects" onclick="switchProjectsTab('my_projects')">Meus Projetos</button>
+                        <button class="mgt-tab-btn" id="tab-btn-my-tooling" onclick="switchProjectsTab('my_tooling')">Minhas (Ferramentaria)</button>
+                        <button class="mgt-tab-btn" id="tab-btn-manage-projects" style="display:none;" onclick="switchProjectsTab('manage_projects')">Gestão de Projetos</button>
+                        <button class="mgt-tab-btn" id="tab-btn-manage-tooling" style="display:none;" onclick="switchProjectsTab('manage_tooling')">Gestão Ferramentaria</button>
+                    </div>
+
+                    <!-- ABA 1: MEUS PROJETOS -->
+                    <div id="projects-tab-my_projects" class="projects-tab-content">
                         <div class="card" style="padding:0;">
                             <table class="data-table">
-                                <thead><tr><th>Item</th><th>Setor</th><th>Qtd/Estoque</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead>
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Categoria</th>
+                                        <th>Identificação Peça</th>
+                                        <th>Setor Impactado</th>
+                                        <th>Prioridade</th>
+                                        <th>Data</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="my-projects-table-body">
+                                    <tr><td colspan="8" class="empty-state">Carregando projetos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ABA 2: MINHAS (FERRAMENTARIA) -->
+                    <div id="projects-tab-my_tooling" class="projects-tab-content" style="display:none;">
+                        <div class="card" style="padding:0;">
+                            <table class="data-table">
+                                <thead><tr><th>Item</th><th>Setor</th><th>Qtd/Estoque</th><th>Data</th><th>Status</th><th style="text-align: right;">Ações</th></tr></thead>
                                 <tbody id="my-tooling-table-body"></tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- ABA: GESTÃO DE FERRAMENTARIA COM FILTROS -->
-                    <div id="maintenance-tab-tooling" class="maintenance-tab-content" style="display:none;">
+                    <!-- ABA 3: GESTÃO DE PROJETOS -->
+                    <div id="projects-tab-manage_projects" class="projects-tab-content" style="display:none;">
+                        <div class="card" style="padding:0; overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Solicitante</th>
+                                        <th>Tipo</th>
+                                        <th>Categoria</th>
+                                        <th>Identificação Peça</th>
+                                        <th>Setor Impactado</th>
+                                        <th>Prioridade</th>
+                                        <th>Data</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="manage-projects-table-body">
+                                    <tr><td colspan="9" class="empty-state">Carregando gestão de projetos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ABA 4: GESTÃO FERRAMENTARIA -->
+                    <div id="projects-tab-manage_tooling" class="projects-tab-content" style="display:none;">
                         <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                             <div id="tooling-filter-controls" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                 <button class="btn btn-secondary active" data-status="all">Todos</button>
@@ -3187,7 +3265,6 @@ const appHTML = `<div id="app-container">
                                 <button class="btn btn-secondary" data-status="executed">Executadas</button>
                                 <button class="btn btn-secondary" data-status="archived" style="margin-left: auto;"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">archive</span> Arquivadas</button>
                             </div>
-                            <!-- BOTÃO EXPORTAR ADICIONADO AQUI -->
                             <button class="btn btn-secondary" onclick="openExportToolingModal()">
                                 <span class="material-icons" style="font-size:18px; color: #1D6F42;">table_view</span> Exportar Excel
                             </button>
@@ -3652,9 +3729,10 @@ const appHTML = `<div id="app-container">
                                     <label style="font-weight: 600; font-size: 0.95rem; margin: 0;">1. Visualização de Módulos</label>
                                 </div>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; margin-bottom: 1.5rem;">
-                                    <label class="perm-checkbox"><input type="checkbox" id="perm-view_dashboard"><span class="perm-checkmark"></span><span class="material-icons perm-icon">dashboard</span><span class="perm-text">Dashboard</span></label>
-                                    <label class="perm-checkbox"><input type="checkbox" id="perm-view_messages"><span class="perm-checkmark"></span><span class="material-icons perm-icon">chat</span><span class="perm-text">Mensagens</span></label>
-                                    <label class="perm-checkbox"><input type="checkbox" id="perm-view_requests"><span class="perm-checkmark"></span><span class="material-icons perm-icon">description</span><span class="perm-text">Requisições Gerais</span></label>
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-view_dashboard"><span class="perm-checkmark"></span><span class="material-icons perm-icon">dashboard</span><span class="perm-text">Dashboard</span></label>
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-view_projects"><span class="perm-checkmark"></span><span class="material-icons perm-icon">architecture</span><span class="perm-text">Projetos</span></label>
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-view_messages"><span class="perm-checkmark"></span><span class="material-icons perm-icon">chat</span><span class="perm-text">Mensagens</span></label>
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-view_requests"><span class="perm-checkmark"></span><span class="material-icons perm-icon">description</span><span class="perm-text">Requisições Gerais</span></label>
                                     <label class="perm-checkbox"><input type="checkbox" id="perm-view_routines"><span class="perm-checkmark"></span><span class="material-icons perm-icon">checklist</span><span class="perm-text">Minhas Rotinas</span></label>
                                     <label class="perm-checkbox"><input type="checkbox" id="perm-view_team"><span class="perm-checkmark"></span><span class="material-icons perm-icon">people</span><span class="perm-text">Equipe</span></label>
                                     <label class="perm-checkbox"><input type="checkbox" id="perm-view_organograma"><span class="perm-checkmark"></span><span class="material-icons perm-icon">account_tree</span><span class="perm-text">Organograma</span></label>
@@ -3709,6 +3787,18 @@ const appHTML = `<div id="app-container">
                                         <label class="perm-checkbox"><input type="checkbox" id="perm-view_tooling"><span class="perm-checkmark"></span><span class="material-icons perm-icon">visibility</span><span class="perm-text">Visualizar Módulo</span></label>
                                         <label class="perm-checkbox"><input type="checkbox" id="perm-req_tooling"><span class="perm-checkmark"></span><span class="material-icons perm-icon">add_circle</span><span class="perm-text">Abrir Solicitações</span></label>
                                         <label class="perm-checkbox" style="grid-column: 1 / -1;"><input type="checkbox" id="perm-mgt_tooling"><span class="perm-checkmark"></span><span class="material-icons perm-icon">rule_folder</span><span class="perm-text">Gerenciar Ferramentaria</span></label>
+                                    </div>
+                                </div>
+
+                                <!-- MÓDULO DE PROJETOS -->
+                                <div style="background: var(--color-background); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                        <span class="material-icons" style="font-size: 20px; color: var(--color-brand-primary);">architecture</span>
+                                        <label style="font-weight: 600; font-size: 0.95rem; margin: 0;">Módulo de Projetos</label>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem;">
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-req_projects"><span class="perm-checkmark"></span><span class="material-icons perm-icon">add_circle</span><span class="perm-text">Solicitar Projetos</span></label>
+                                        <label class="perm-checkbox"><input type="checkbox" id="perm-mgt_projects"><span class="perm-checkmark"></span><span class="material-icons perm-icon">rule_folder</span><span class="perm-text">Gerenciar (Planejar/Executar)</span></label>
                                     </div>
                                 </div>
 
@@ -3975,7 +4065,8 @@ async function showApp() {
         } else {
             const pageToKeyMap = {
                 'dashboard-page': 'view_dashboard', 'messages-page': 'view_messages', 
-                'maintenance-page': ['view_maintenance', 'view_tooling'], // Alterado aqui para aceitar as duas permissões
+                'maintenance-page': 'view_maintenance',
+                'projects-page': ['view_projects', 'view_tooling', 'view_maintenance'], // Acessível se tiver projetos, ferramentaria ou manutenção
                 'suprimentos-page': 'mgt_purchasing', // Apenas Compras ou Admin
                 'requests-page': 'view_requests', 'my-routines-page': 'view_routines', 'feedback-page': 'view_feedback',
                 'team-page': 'view_team', 'organograma-page': 'view_organograma', 'rankings-page': 'view_rankings',
@@ -4057,6 +4148,7 @@ async function showApp() {
 
      // 5. Redirecionamento Inicial
             const hash = window.location.hash.substring(1); // Pega o que vem depois do #
+            const hasAnyPerm = p.length > 0;
 
             // PRIMEIRO: Tenta carregar a página da URL
             if (hash && document.getElementById(hash) && (p.includes(`view_${hash.replace('-page', '')}`) || isAdmin || ['profile-page', 'no-permissions-page'].includes(hash) )) {
@@ -7036,31 +7128,12 @@ function renderRequestForm(type) {
 
             switch (type) {
                 case 'maintenance':
-                    title = 'Nova Solicitação';
-                    
-                    // Checa permissões para saber quais abas mostrar no formulário
-                    const p = currentUserProfile.permissions || [];
-                    const isAdmin = p.includes('manage_users');
-                    const canReqMaint = isAdmin || p.includes('req_maintenance');
-                    const canReqTool = isAdmin || p.includes('req_tooling');
-                    
-                    let tabsHTML = '';
-                    // Só mostra as abas se o usuário tiver acesso a MAIS DE UM formulário
-                    if (canReqMaint && canReqTool) {
-                        tabsHTML = `
-                            <div class="mgt-tabs" style="margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-bottom: 1px solid var(--color-border); padding: 1rem 1.5rem 0 1.5rem; background: var(--color-background);">
-                                <button type="button" class="mgt-tab-btn active" id="tab-btn-req-maint" onclick="switchRequestFormTab('maintenance')">Manutenção Geral</button>
-                                <button type="button" class="mgt-tab-btn" id="tab-btn-req-tooling" onclick="switchRequestFormTab('tooling')">Ferramentaria</button>
-                            </div>
-                        `;
-                    }
+                    title = 'Nova Solicitação de Manutenção';
+                    currentRequestFormMode = 'maintenance';
                     
                     formHTML = `
-                        <!-- SISTEMA DE ABAS DINÂMICO -->
-                        ${tabsHTML}
-
-                        <!-- FORMULÁRIO 1: MANUTENÇÃO -->
-                        <div id="request-form-maintenance" style="display: ${canReqMaint ? 'block' : 'none'};">
+                        <!-- FORMULÁRIO EXCLUSIVO DE MANUTENÇÃO (SEM FERRAMENTARIA) -->
+                        <div id="request-form-maintenance">
                             <div class="form-group">
                                 <label>1. Setor*</label>
                                 <div class="radio-group" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
@@ -7082,24 +7155,19 @@ function renderRequestForm(type) {
                                 <label>2. Selecione as Máquinas (Opcional para Infraestrutura)</label>
                                 
                                 <div style="background: var(--color-background); border: 1px solid var(--color-border); border-radius: 8px; padding: 0.5rem; margin-bottom: 0.75rem;">
-                                    <!-- Busca Rápida de Máquina -->
                                     <div style="position: relative; margin-bottom: 0.5rem;">
                                         <span class="material-icons" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-secondary); font-size: 18px;">search</span>
                                         <input type="text" id="machine-quick-search" class="input-field" placeholder="Pesquisar máquina por nome ou código..." oninput="filterMachineCheckboxes()" style="padding-left: 35px; padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.85rem; border-color: var(--color-border);" disabled>
                                     </div>
-                                    <!-- Caixa onde os checkboxes vão aparecer -->
                                     <div id="machine-selection-list" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 180px; overflow-y: auto;">
                                         <div class="empty-state" style="padding: 0.5rem; font-size: 0.8rem; margin: 0;">Selecione um setor na Pergunta 1 para ver as máquinas...</div>
                                     </div>
                                 </div>
                                 
-                                <!-- Campo físico original mantido -->
                                 <label for="req-maint-equip-manual" style="font-size: 0.9rem;">Descrição Adicional ou Infraestrutura*</label>
                                 <p style="font-size:0.8rem; color:var(--color-text-secondary); margin-top:-0.5rem; margin-bottom: 0.5rem;">Se for infraestrutura (ex: ventilador, porta) ou a máquina não estiver na lista, descreva aqui.</p>
                                 
                                 <input type="text" id="req-maint-equip-manual" class="input-field" placeholder="Insira sua resposta" oninput="updateFinalEquipField()">
-                                
-                                <!-- Campo OCULTO que o n8n vai ler (junta as máquinas + o texto) -->
                                 <input type="hidden" id="req-maint-equip-final" name="equipamento" required>
                             </div>
                             
@@ -7120,63 +7188,7 @@ function renderRequestForm(type) {
                                 </div>
                             </div>
                         </div>
-
-                        <!-- FORMULÁRIO 2: FERRAMENTARIA -->
-                        <div id="request-form-tooling" style="display: ${(!canReqMaint && canReqTool) ? 'block' : 'none'};">
-                            <div class="form-group">
-                                <label>1. Item solicitado*</label>
-                                <input type="text" id="tooling-item" name="tooling_item" class="input-field" placeholder="Ex: Repasse de caixinha macho...">
-                            </div>
-                            
-                            <div class="grid grid-cols-2">
-                                <div class="form-group">
-                                    <label>2. Quantidade*</label>
-                                    <input type="number" id="tooling-qty" name="tooling_qty" class="input-field" min="1" value="1">
-                                </div>
-                                <div class="form-group">
-                                    <label>3. Estoque Atual*</label>
-                                    <input type="number" id="tooling-stock" name="tooling_stock" class="input-field" min="0" value="0">
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2">
-    <div class="form-group">
-        <label>4. Prioridade*</label>
-        <select id="tooling-priority" name="tooling_priority" class="input-field">
-            <option value="Urgente">Urgente</option>
-            <option value="Importante">Importante</option>
-            <option value="Futuro">Futuro</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label>5. Caminho/Rota</label>
-        <input type="text" id="tooling-path" name="tooling_path" class="input-field" placeholder="Especifique o caminho">
-    </div>
-</div>
-
-                            <div class="grid grid-cols-2">
-                                <div class="form-group">
-                                    <label>6. Setor*</label>
-                                    <select id="tooling-sector" name="tooling_sector" class="input-field" onchange="updateToolingSubSectors()">
-                                        <option value="">Selecione o Setor</option>
-                                        <option value="Molas">Molas</option>
-                                        <option value="Helicoidais">Helicoidais</option>
-                                        <option value="Fundição Areia Verde">Fundição Areia Verde</option>
-                                        <option value="Fundição Cold Box">Fundição Cold Box</option>
-                                        <option value="Usinagem">Usinagem</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>7. Subsetor / Máquina*</label>
-                                    <select id="tooling-subsector" name="tooling_subsector" class="input-field" disabled>
-                                        <option value="">Selecione um setor primeiro</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
                     `;
-                    // Define default form mode when opening modal based on permissions
-                    currentRequestFormMode = canReqMaint ? 'maintenance' : 'tooling';
                     break;
 
                 case 'travel': 
@@ -8403,6 +8415,7 @@ function toggleRecipientSelection(user) {
             if (pageId === 'kb-page') loadKBPage();
             if (pageId === 'users-page') loadUsersForAdmin(); 
             if (pageId === 'maintenance-page') loadMaintenancePage();
+            if (pageId === 'projects-page') loadProjectsPage();
             if (pageId === 'suprimentos-page') loadSuprimentosPage();
             if (pageId === 'workflow-builder-page') {
                 loadWorkflowBuilderPage();
@@ -16758,6 +16771,18 @@ async function submitSupplyUpdate() {
             const sector = document.getElementById('tooling-sector').value;
             const subsector = document.getElementById('tooling-subsector').value;
 
+            // --> INÍCIO DA LÓGICA DE SUB-ITENS
+            const subItemsRows = document.querySelectorAll('.tooling-subitem-row');
+            const subItemsArray = [];
+            subItemsRows.forEach(row => {
+                const name = row.querySelector('.subitem-name').value.trim();
+                const phase = row.querySelector('.subitem-phase').value.trim();
+                if (name) { // Só salva se o usuário preencheu um nome
+                    subItemsArray.push({ name: name, phase: phase, completed: false });
+                }
+            });
+            // <-- FIM DA LÓGICA DE SUB-ITENS
+
             // --> INÍCIO DA LÓGICA DE ANEXO
             const fileInput = document.getElementById('rh-anexo');
             const file = fileInput ? fileInput.files[0] : null;
@@ -16768,7 +16793,8 @@ async function submitSupplyUpdate() {
                 return;
             }
 
-            const btn = document.getElementById('btn-submit-request');
+            // CORREÇÃO: O ID do botão agora é o do modal integrado de Projetos/Ferramentaria
+            const btn = document.getElementById('btn-submit-proj-or-tool');
             btn.disabled = true;
             btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Enviando...';
 
@@ -16806,7 +16832,8 @@ async function submitSupplyUpdate() {
                 sector: sector,
                 sub_sector: subsector,
                 anexo_nome: anexoNome,
-                anexo_url: anexoUrl
+                anexo_url: anexoUrl,
+                sub_items: subItemsArray // Injeta o array no JSON
             };
 
             try {
@@ -17006,6 +17033,49 @@ async function submitSupplyUpdate() {
                     </div>
                 `;
                 
+                // --> INÍCIO DO CHECKLIST DINÂMICO
+                let checklistHTML = '';
+                const subItems = request.sub_items || [];
+                if (subItems.length > 0) {
+                    const p = currentUserProfile.permissions || [];
+                    const isToolingManager = p.includes('manage_users') || p.includes('mgt_tooling');
+                    // CORREÇÃO: Permite dar check tanto em 'pending' quanto em 'planned'
+                    const canCheck = isToolingManager && (request.status === 'planned' || request.status === 'pending');
+
+                    let itemsHTML = '';
+                    subItems.forEach((item, idx) => {
+                        const checkAttr = item.completed ? 'checked' : '';
+                        const disableAttr = canCheck ? '' : 'disabled';
+                        const onChange = canCheck ? `onchange="toggleToolingSubItem('${request.id}', ${idx}, this)"` : '';
+                        const color = item.completed ? 'var(--color-success)' : 'var(--color-text-primary)';
+                        const decoration = item.completed ? 'line-through' : 'none';
+                        const phaseHTML = item.phase ? `<span style="font-size: 0.75rem; color: var(--color-text-secondary);">${item.phase}</span>` : '';
+                        
+                        itemsHTML += `
+                            <label class="custom-checkbox" style="padding: 0.75rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; margin: 0; display: flex; align-items: center; cursor: ${canCheck ? 'pointer' : 'default'}; transition: all 0.2s;">
+                                <input type="checkbox" ${checkAttr} ${disableAttr} ${onChange}>
+                                <span class="checkbox-box"><span class="material-icons">check</span></span>
+                                <div style="display: flex; flex-direction: column; margin-left: 8px;">
+                                    <span style="font-weight: 600; font-size: 0.9rem; color: ${color}; text-decoration: ${decoration}; transition: all 0.2s;">${item.name}</span>
+                                    ${phaseHTML}
+                                </div>
+                            </label>
+                        `;
+                    });
+
+                    checklistHTML = `
+                        <div style="background: var(--color-background); padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--color-border);">
+                            <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; text-transform: uppercase; color: var(--color-text-secondary); display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons" style="font-size: 18px; color: var(--color-brand-primary);">checklist</span> Checklist de Produção
+                            </h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                ${itemsHTML}
+                            </div>
+                        </div>
+                    `;
+                }
+                // <-- FIM DO CHECKLIST
+
                 let timelineHTML = `
                     <h4 style="text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--color-text-secondary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons" style="font-size: 16px;">timeline</span> Histórico de Processamento</h4>
                     <div style="margin-left: 15px; border-left: 2px solid var(--color-border); padding-left: 25px; position: relative;">
@@ -17146,6 +17216,28 @@ async function submitSupplyUpdate() {
                     `;
                 });
 
+                // Atualizações de Checklist (Logs de Sub-itens)
+                const checklistEvents = history.filter(h => h.status === 'checklist_update');
+                checklistEvents.forEach(event => {
+                    const eventDate = new Date(event.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+                    const eventUser = event.changed_by_name || 'Ferramenteiro';
+                    const isCheck = event.notes.includes('CONCLUÍDA');
+                    const color = isCheck ? 'var(--color-success)' : 'var(--color-warning)';
+                    const title = isCheck ? 'Sub-item Concluído' : 'Sub-item Desmarcado';
+                    const cleanNotes = (event.notes || '').replace(/\[.*?\]\s*/, '').trim();
+
+                    timelineHTML += `
+                        <div style="margin-bottom: 2rem; position: relative;">
+                            <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: ${color}; border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px ${color};"></div>
+                            <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: ${color}; letter-spacing: 0.05em;">${title}</div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${eventUser} • ${eventDate}</div>
+                            <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-background); border: 1px solid var(--color-border); padding: 10px; border-radius: 8px;">
+                                <div><strong style="color: ${color};">${cleanNotes}</strong></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
                 // Execução
                 const execHistory = history.find(h => h.status === 'executed');
                 if (execHistory) {
@@ -17161,6 +17253,7 @@ async function submitSupplyUpdate() {
                             <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Ferramenta Entregue/Executada</div>
                             <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${execUser} • ${execDate}</div>
                             <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-success-bg); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px; border-radius: 8px;">
+                                ${request.real_quantity !== null && request.real_quantity !== undefined ? `<div style="margin-bottom: 4px;"><strong style="color: var(--color-success);">Quantidade Real Executada:</strong> ${request.real_quantity}</div>` : ''}
                                 <div><strong style="color: var(--color-success);">Relatório:</strong> ${cleanDetail}</div>
                             </div>
                         </div>
@@ -17198,7 +17291,8 @@ async function submitSupplyUpdate() {
                     `;
                 }
 
-                modalBody.innerHTML = `<div style="padding: 0.5rem;">${headerHTML}${timelineHTML}${feedbackFormHTML}</div>`;
+                // INSERE O CHECKLIST ENTRE O HEADER E A TIMELINE
+                modalBody.innerHTML = `<div style="padding: 0.5rem;">${headerHTML}${checklistHTML}${timelineHTML}${feedbackFormHTML}</div>`;
                 
                 // --- BOTÕES DE AÇÃO DINÂMICOS NO RODAPÉ ---
                 const p = currentUserProfile.permissions || [];
@@ -17206,13 +17300,24 @@ async function submitSupplyUpdate() {
                 let footerActionsHTML = '';
                 
                 if (canManageTooling) {
-                    if (request.status === 'pending') {
-                        // ADICIONADO: Botão de status liberado já na fase de Pendente
+                    if (request.status === 'pending' || request.status === 'planned') {
+                        // Botão de Status aparece em ambos
                         footerActionsHTML += `<button class="btn btn-info" onclick="openToolingSubStatusModal('${request.id}', '${request.sub_status || ''}')"><span class="material-icons" style="font-size:16px; margin-right:4px; vertical-align:middle;">hourglass_empty</span> Status</button>`;
-                        footerActionsHTML += `<button class="btn btn-warning" onclick="openToolingPlanningModal('${request.id}')">Planejar</button>`;
-                    } else if (request.status === 'planned') {
-                        footerActionsHTML += `<button class="btn btn-info" onclick="openToolingSubStatusModal('${request.id}', '${request.sub_status || ''}')"><span class="material-icons" style="font-size:16px; margin-right:4px; vertical-align:middle;">hourglass_empty</span> Status</button>`;
-                        footerActionsHTML += `<button class="btn btn-success" onclick="openToolingExecutionModal('${request.id}')">Executar</button>`;
+                        
+                        // Botão Planejar só aparece se for Pendente
+                        if (request.status === 'pending') {
+                            footerActionsHTML += `<button class="btn btn-warning" onclick="openToolingPlanningModal('${request.id}')">Planejar</button>`;
+                        }
+                        
+                        // Trava de Segurança do Checklist e botão Executar (agora disponíveis em Pendente também)
+                        const subItems = request.sub_items || [];
+                        const allCompleted = subItems.length === 0 || subItems.every(i => i.completed);
+                        
+                        if (allCompleted) {
+                            footerActionsHTML += `<button class="btn btn-success" id="btn-execute-tooling" onclick="openToolingExecutionModal('${request.id}')">Executar</button>`;
+                        } else {
+                            footerActionsHTML += `<button class="btn btn-success" id="btn-execute-tooling" style="opacity: 0.5; cursor: not-allowed;" title="Conclua todos os sub-itens no Checklist primeiro" onclick="showToast('Finalize o checklist antes de concluir o chamado.', 'warning')">Executar</button>`;
+                        }
                     }
                 }
                 
@@ -17287,6 +17392,10 @@ async function submitSupplyUpdate() {
             document.getElementById('tooling-exec-time').value = now.toTimeString().split(' ')[0].substring(0,5);
             document.getElementById('tooling-exec-notes').value = '';
             
+            // Sugere a quantidade original solicitada por padrão
+            const req = (allToolingRequestsCache || []).find(r => r.id === requestId);
+            document.getElementById('tooling-exec-qty').value = req ? (req.quantity || '') : '';
+            
             document.getElementById('tooling-execution-modal').classList.add('visible');
         }
 
@@ -17354,9 +17463,11 @@ async function submitSupplyUpdate() {
             const requestId = document.getElementById('tooling-exec-request-id').value;
             const date = document.getElementById('tooling-exec-date').value;
             const time = document.getElementById('tooling-exec-time').value;
+            const realQty = document.getElementById('tooling-exec-qty').value;
             const notes = document.getElementById('tooling-exec-notes').value;
 
             if (!date || !time) { showToast('Data e hora real são obrigatórias.', 'warning'); return; }
+            if (realQty === '' || parseInt(realQty) < 0) { showToast('Informe a Quantidade Real Executada.', 'warning'); return; }
 
             const btn = document.getElementById('tooling-execution-modal').querySelector('.btn-success');
             btn.disabled = true;
@@ -17367,6 +17478,7 @@ async function submitSupplyUpdate() {
                     request_id: requestId,
                     real_execution_date: date,
                     real_execution_time: time,
+                    real_quantity: parseInt(realQty),
                     execution_notes: notes,
                     followed_plan: true,
                     changed_by: currentUserProfile.id,
@@ -19104,14 +19216,713 @@ async function submitAddOrderNumber(requestId) {
 // ===================================================================
 
 
+// ===================================================================
+// INÍCIO: MÓDULO DE PROJETOS E FERRAMENTARIA
+// ===================================================================
+
+const N8N_CREATE_PROJECT_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/create-project-request';
+
+function switchProjectsTab(tabId) {
+    document.querySelectorAll('.projects-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#projects-page .mgt-tab-btn').forEach(el => el.classList.remove('active'));
+    
+    const contentToShow = document.getElementById(`projects-tab-${tabId}`);
+    if (contentToShow) contentToShow.style.display = 'block';
+
+    const btn = document.getElementById(`tab-btn-${tabId.replace('_', '-')}`);
+    if (btn) btn.classList.add('active');
+
+    if (tabId === 'my_projects') loadMyProjectsData();
+    if (tabId === 'my_tooling' || tabId === 'manage_tooling') loadToolingManagementData();
+    if (tabId === 'manage_projects') loadManageProjectsData();
+}
+
+async function loadProjectsPage() {
+    const p = currentUserProfile.permissions || [];
+    const isAdmin = p.includes('manage_users');
+
+    document.getElementById('tab-btn-manage-tooling').style.display = (isAdmin || p.includes('mgt_tooling')) ? 'block' : 'none';
+    document.getElementById('tab-btn-manage-projects').style.display = (isAdmin || p.includes('mgt_tooling') || p.includes('manage_projects')) ? 'block' : 'none';
+
+    switchProjectsTab('my_projects');
+    await loadMachinesForForm();
+}
+
+async function loadMyProjectsData() {
+    const tableBody = document.getElementById('my-projects-table-body');
+    if (!tableBody) return;
+    tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">Buscando seus projetos...</td></tr>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('project_requests')
+            .select('*')
+            .eq('requester_id', currentUserProfile.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">Você ainda não solicitou nenhum projeto.</td></tr>';
+            return;
+        }
+
+        const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Concluído', 'rejected': 'Recusada' };
+
+        tableBody.innerHTML = data.map(req => `
+            <tr>
+                <td><strong>${req.request_type}</strong></td>
+                <td>${req.category}</td>
+                <td>${req.part_identification || '-'}</td>
+                <td>${req.impacted_sector || '-'}</td>
+                <td><span class="tag-fino ${req.priority === 'Alta' ? 'tag-urgent' : ''}">${req.priority}</span></td>
+                <td>${new Date(req.created_at).toLocaleDateString('pt-BR')}</td>
+                <td><span class="status-tag status-${req.status}">${statusLabels[req.status] || req.status}</span></td>
+                <td style="text-align: right;">
+                    <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openProjectDetailsModal('${req.id}')">Ver Detalhes</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        tableBody.innerHTML = '<tr><td colspan="8" class="empty-state" style="color:var(--color-danger)">Erro ao carregar projetos.</td></tr>';
+    }
+}
+
+async function loadManageProjectsData() {
+    const tableBody = document.getElementById('manage-projects-table-body');
+    if (!tableBody) return;
+    tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">Carregando gestão de projetos...</td></tr>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('project_requests')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">Nenhum projeto encontrado.</td></tr>';
+            return;
+        }
+
+        const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Concluído', 'rejected': 'Recusada' };
+        const p = currentUserProfile.permissions || [];
+        const canManageProjects = p.includes('manage_users') || p.includes('mgt_projects');
+
+        tableBody.innerHTML = data.map(req => {
+            let btnAcao = '';
+            if (canManageProjects) {
+                if (req.status === 'pending') {
+                    btnAcao = `<button class="btn btn-warning" style="padding: 0.4rem 0.8rem;" onclick="openProjectPlanningModal('${req.id}')">Planejar</button>`;
+                } else if (req.status === 'planned') {
+                    btnAcao = `<button class="btn btn-success" style="padding: 0.4rem 0.8rem;" onclick="openProjectExecutionModal('${req.id}')">Executar</button>`;
+                }
+            }
+
+            return `
+            <tr>
+                <td><strong>${req.requester_name || 'N/A'}</strong></td>
+                <td>${req.request_type}</td>
+                <td>${req.category}</td>
+                <td>${req.part_identification || '-'}</td>
+                <td>${req.impacted_sector || '-'}</td>
+                <td><span class="tag-fino ${req.priority === 'Alta' ? 'tag-urgent' : ''}">${req.priority}</span></td>
+                <td>${new Date(req.created_at).toLocaleDateString('pt-BR')}</td>
+                <td><span class="status-tag status-${req.status}">${statusLabels[req.status] || req.status}</span></td>
+                <td style="text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openProjectDetailsModal('${req.id}')">Detalhes</button>
+                    ${btnAcao}
+                </td>
+            </tr>
+            `;
+        }).join('');
+    } catch(e) {
+        tableBody.innerHTML = '<tr><td colspan="9" class="empty-state" style="color:var(--color-danger)">Erro ao carregar gestão de projetos.</td></tr>';
+    }
+}
+
+// Variável de controle da aba atual do modal de Projetos
+let currentProjectsModalFormTab = 'project';
+
+function switchProjectsModalFormTab(tab) {
+    currentProjectsModalFormTab = tab;
+    document.getElementById('form-tab-project-content').style.display = tab === 'project' ? 'block' : 'none';
+    document.getElementById('form-tab-tooling-content').style.display = tab === 'tooling' ? 'block' : 'none';
+    document.getElementById('tab-btn-modal-proj').classList.toggle('active', tab === 'project');
+    document.getElementById('tab-btn-modal-tool').classList.toggle('active', tab === 'tooling');
+}
+
+// Modal Integrado com as abas [ Projetos ] e [ Ferramentaria ] lado a lado
+function openProjectOrToolingModal(defaultTab = 'project') {
+    const modal = document.getElementById('request-modal');
+    document.getElementById('request-modal-title').textContent = 'Nova Solicitação';
+
+    const machineOptions = (allMachinesCache || []).map(m => `<option value="${m.name} (${m.code || 'S/N'})">${m.code ? m.code + ' - ' : ''}${m.name} (${m.sector})</option>`).join('');
+
+    document.getElementById('request-modal-body').innerHTML = `
+        <!-- NAVEGAÇÃO DE ABAS DO MODAL -->
+        <div class="mgt-tabs" style="margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-bottom: 1px solid var(--color-border); padding: 1rem 1.5rem 0 1.5rem; background: var(--color-background);">
+            <button type="button" class="mgt-tab-btn active" id="tab-btn-modal-proj" onclick="switchProjectsModalFormTab('project')">Projetos</button>
+            <button type="button" class="mgt-tab-btn" id="tab-btn-modal-tool" onclick="switchProjectsModalFormTab('tooling')">Ferramentaria</button>
+        </div>
+
+        <!-- ABA 1: FORMULÁRIO DE PROJETOS -->
+        <div id="form-tab-project-content" style="display: block;">
+            <form id="project-form">
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>Tipo de Requisição*</label>
+                        <select id="proj-type" class="input-field" required>
+                            <option value="Novo Projeto" selected>Novo Projeto</option>
+        <option value="Projeto de revisão">Projeto de revisão</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoria de Projeto*</label>
+                        <select id="proj-category" class="input-field" required onchange="toggleProjectMachineSelection(this.value)">
+                            <option value="Mola">Mola</option>
+                            <option value="Ferramenta">Ferramenta</option>
+                            <option value="Máquina-peça">Máquina-peça*</option>
+                            <option value="Máquina">Máquina*</option>
+                            <option value="Artefato">Artefato</option>
+                            <option value="Ferramental-Fundição">Ferramental-Fundição</option>
+                            <option value="Infraestrutura">Infraestrutura</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="proj-machine-group" style="display: none; background: var(--color-background); padding: 10px; border-radius: 8px; border: 1px dashed var(--color-border);">
+                    <label style="color: var(--color-brand-primary);">Selecione a Máquina do Acervo*</label>
+                    <select id="proj-machine-select" class="input-field">
+                        <option value="">-- Selecione uma Máquina --</option>
+                        ${machineOptions}
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>Setor Requerente*</label>
+                        <select id="proj-requester-sector" class="input-field" required>
+                            <option value="Helicoidal">Helicoidal</option>
+                            <option value="Plana">Plana</option>
+                            <option value="Fundição">Fundição</option>
+                            <option value="Fundição Cold-Box">Fundição Cold-Box</option>
+                            <option value="Usinagem">Usinagem</option>
+                            <option value="Ferramentaria">Ferramentaria</option>
+                            <option value="Qualidade">Qualidade</option>
+                            <option value="Comercial">Comercial</option>
+                            <option value="Manutenção">Manutenção</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Setor Impactado*</label>
+                        <select id="proj-impacted-sector" class="input-field" required>
+                            <option value="Helicoidal">Helicoidal</option>
+                            <option value="Plana">Plana</option>
+                            <option value="Fundição">Fundição</option>
+                            <option value="Fundição Cold-Box">Fundição Cold-Box</option>
+                            <option value="Usinagem">Usinagem</option>
+                            <option value="Ferramentaria">Ferramentaria</option>
+                            <option value="Qualidade">Qualidade</option>
+                            <option value="Comercial">Comercial</option>
+                            <option value="Manutenção">Manutenção</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>Identificação da Peça*</label>
+                        <input type="text" id="proj-part-id" class="input-field" placeholder="Ex: Eixo 4050, Mola de Tração..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Prioridade*</label>
+                        <select id="proj-priority" class="input-field" required onchange="toggleProjectPriorityJustification(this.value)">
+                            <option value="Baixa">Baixa</option>
+                            <option value="Média" selected>Média</option>
+                            <option value="Alta">Alta* (Requer Justificativa)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="proj-justification-group" style="display: none;">
+                    <label style="color: var(--color-danger);">Justificativa da Prioridade Alta*</label>
+                    <input type="text" id="proj-priority-justification" class="input-field" placeholder="Por que este projeto é urgente?">
+                </div>
+
+                <div class="form-group">
+                    <label>Descrição / Aplicação*</label>
+                    <textarea id="proj-desc" class="input-field" rows="3" placeholder="Descreva os requisitos técnicos, dimensões e onde será aplicado..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Anexo (Croqui, Desenho Técnico, Foto ou PDF)</label>
+                    <input type="file" id="proj-file" class="input-field" accept="image/*,.pdf,.dwg,.dxf,.zip">
+                </div>
+            </form>
+        </div>
+
+        <!-- ABA 2: FORMULÁRIO DE FERRAMENTARIA -->
+        <div id="form-tab-tooling-content" style="display: none;">
+            <form id="tooling-form-isolated">
+                <div class="form-group">
+                    <label>1. Item solicitado*</label>
+                    <input type="text" id="tooling-item" class="input-field" placeholder="Ex: Repasse de caixinha macho..." required>
+                </div>
+                
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>2. Quantidade*</label>
+                        <input type="number" id="tooling-qty" class="input-field" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>3. Estoque Atual*</label>
+                        <input type="number" id="tooling-stock" class="input-field" min="0" value="0" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>4. Prioridade*</label>
+                        <select id="tooling-priority" class="input-field">
+                            <option value="Urgente">Urgente</option>
+                            <option value="Importante">Importante</option>
+                            <option value="Futuro">Futuro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>5. Caminho/Rota</label>
+                        <input type="text" id="tooling-path" class="input-field" placeholder="Especifique o caminho">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>6. Setor*</label>
+                        <select id="tooling-sector" class="input-field" onchange="updateToolingSubSectors()" required>
+                            <option value="">Selecione o Setor</option>
+                            <option value="Molas">Molas</option>
+                            <option value="Helicoidais">Helicoidais</option>
+                            <option value="Fundição Areia Verde">Fundição Areia Verde</option>
+                            <option value="Fundição Cold Box">Fundição Cold Box</option>
+                            <option value="Usinagem">Usinagem</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>7. Subsetor / Máquina*</label>
+                        <select id="tooling-subsector" class="input-field" disabled required>
+                            <option value="">Selecione um setor primeiro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- NOVO: Bloco de Sub-itens -->
+                <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--color-border);">
+                    <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: var(--color-text-primary);">Itens Complementares / Sub-itens (Opcional)</h4>
+                    <div id="tooling-subitems-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addToolingSubItem()" style="width: 100%; border-color: var(--color-danger); color: var(--color-danger);">
+                        <span class="material-icons" style="font-size: 18px; margin-right: 5px;">add</span> Adicionar Sub-item / Componente
+                    </button>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Anexos (Opcional)</label>
+                    <input type="file" id="rh-anexo" class="input-field" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('request-modal-footer').innerHTML = `
+        <button class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
+        <button class="btn btn-danger" id="btn-submit-proj-or-tool" onclick="submitProjectOrToolingForm(event)">Enviar Solicitação</button>
+    `;
+
+    switchProjectsModalFormTab(defaultTab);
+    modal.classList.add('visible');
+}
+
+function submitProjectOrToolingForm(event) {
+    if (currentProjectsModalFormTab === 'project') {
+        submitProjectRequest(event);
+    } else {
+        submitToolingRequest(event);
+    }
+}
+
+function toggleProjectMachineSelection(category) {
+    const group = document.getElementById('proj-machine-group');
+    if (group) {
+        group.style.display = (category === 'Máquina' || category === 'Máquina-peça') ? 'block' : 'none';
+    }
+}
+
+function toggleProjectPriorityJustification(priority) {
+    const group = document.getElementById('proj-justification-group');
+    const input = document.getElementById('proj-priority-justification');
+    if (group && input) {
+        group.style.display = priority === 'Alta' ? 'block' : 'none';
+        input.required = priority === 'Alta';
+    }
+}
+
+async function submitProjectRequest(event) {
+    event.preventDefault();
+
+    const type = document.getElementById('proj-type').value;
+    const category = document.getElementById('proj-category').value;
+    const machineSelect = document.getElementById('proj-machine-select');
+    const machineName = (category === 'Máquina' || category === 'Máquina-peça') ? machineSelect.value : null;
+
+    const reqSector = document.getElementById('proj-requester-sector').value;
+    const impSector = document.getElementById('proj-impacted-sector').value;
+    const partId = document.getElementById('proj-part-id').value.trim();
+    const priority = document.getElementById('proj-priority').value;
+    const priorityJust = document.getElementById('proj-priority-justification').value.trim();
+    const desc = document.getElementById('proj-desc').value.trim();
+    const fileInput = document.getElementById('proj-file');
+    const file = fileInput ? fileInput.files[0] : null;
+
+    if (!partId || !desc) {
+        showToast("Preencha todos os campos obrigatórios (*)", "warning");
+        return;
+    }
+
+    if (priority === 'Alta' && !priorityJust) {
+        showToast("A justificativa é obrigatória para prioridade Alta!", "warning");
+        return;
+    }
+
+    const btn = document.getElementById('btn-submit-project');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Enviando...';
+
+    try {
+        let anexoNome = null;
+        let anexoUrl = null;
+
+        if (file) {
+            showToast("Fazendo upload do anexo...", "info");
+            const fileExt = file.name.split('.').pop();
+            const fileName = `proj_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+            
+            const { error: uploadError } = await supabaseClient.storage.from('anexos').upload(fileName, file);
+            if (uploadError) throw new Error("Falha no upload do anexo: " + uploadError.message);
+
+            const { data: publicUrlData } = supabaseClient.storage.from('anexos').getPublicUrl(fileName);
+            anexoNome = file.name;
+            anexoUrl = publicUrlData.publicUrl;
+        }
+
+        const payload = {
+            requester_id: currentUserProfile.id,
+            requester_name: currentUserProfile.full_name,
+            request_type: type,
+            category: category,
+            machine_name: machineName,
+            requester_sector: reqSector,
+            impacted_sector: impSector,
+            part_identification: partId,
+            priority: priority,
+            priority_justification: priorityJust,
+            description: desc,
+            anexo_nome: anexoNome,
+            anexo_url: anexoUrl
+        };
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_CREATE_PROJECT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("Falha ao salvar no n8n.");
+
+        showToast("Solicitação de Projeto enviada com sucesso!", "success");
+        closeRequestModal();
+        setTimeout(() => loadMyProjectsData(), 1000);
+
+    } catch(e) {
+        showToast("Erro: " + e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Enviar Solicitação de Projeto';
+    }
+}
+
+async function openProjectDetailsModal(projectId) {
+    const modal = document.getElementById('request-modal');
+    document.getElementById('request-modal-title').textContent = 'Histórico do Projeto';
+    const modalBody = document.getElementById('request-modal-body');
+    const modalFooter = document.getElementById('request-modal-footer');
+    modalBody.innerHTML = '<div class="empty-state">Carregando detalhes...</div>';
+    modalFooter.innerHTML = '';
+    modal.classList.add('visible');
+
+    try {
+        const [projRes, historyRes] = await Promise.all([
+            supabaseClient.from('project_requests').select('*').eq('id', projectId).single(),
+            supabaseClient.from('project_request_history').select('*').eq('request_id', projectId).order('created_at', { ascending: true })
+        ]);
+
+        if (projRes.error || !projRes.data) throw new Error("Projeto não encontrado.");
+        const proj = projRes.data;
+        const history = historyRes.data || [];
+
+        const statusTranslations = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Concluído', 'rejected': 'Recusada' };
+
+        let anexoHTML = '';
+        if (proj.anexo_url) {
+            const isImage = proj.anexo_url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i);
+            anexoHTML = `
+                <div style="margin-top: 1rem; grid-column: 1 / -1;">
+                    <strong style="font-size:0.75rem; text-transform:uppercase; color:var(--color-text-secondary); display:block; margin-bottom:4px;">Anexo</strong>
+                    ${isImage ? `<img src="${proj.anexo_url}" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--color-border); cursor:zoom-in;" onclick="openLightbox(event, '${proj.anexo_url}')">` : `<a href="${proj.anexo_url}" target="_blank" class="btn btn-secondary"><span class="material-icons">download</span> Baixar Arquivo</a>`}
+                </div>
+            `;
+        }
+
+        let headerHTML = `
+            <div style="background: var(--color-background); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--color-border); margin-bottom: 1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem;">${proj.part_identification}</h3>
+                        <small style="color:var(--color-text-secondary);">Solicitante: ${proj.requester_name} • ${new Date(proj.created_at).toLocaleString('pt-BR')}</small>
+                    </div>
+                    <span class="status-tag status-${proj.status}">${statusTranslations[proj.status] || proj.status}</span>
+                </div>
+            </div>
+        `;
+
+        let timelineHTML = `
+            <h4 style="text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--color-text-secondary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;"><span class="material-icons" style="font-size: 16px;">timeline</span> Linha do Tempo do Projeto</h4>
+            <div style="margin-left: 15px; border-left: 2px solid var(--color-border); padding-left: 25px; position: relative;">
+        `;
+
+        // Etapa 1: Abertura
+        timelineHTML += `
+            <div style="margin-bottom: 2rem; position: relative;">
+                <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-brand-primary); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-brand-primary);"></div>
+                <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-brand-primary); letter-spacing: 0.05em;">Etapa 1: Abertura</div>
+                <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Solicitação de Projeto Registrada</div>
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${proj.requester_name} • ${new Date(proj.created_at).toLocaleString('pt-BR')}</div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px 15px; background:var(--color-background); padding:1rem; border-radius:8px; border:1px solid var(--color-border); margin-top: 10px;">
+                    <div><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Tipo</small><strong>${proj.request_type}</strong></div>
+                    <div><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Categoria</small><strong>${proj.category}</strong></div>
+                    ${proj.machine_name ? `<div style="grid-column: 1 / -1;"><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Máquina</small><strong>${proj.machine_name}</strong></div>` : ''}
+                    <div><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Setor Requerente</small><strong>${proj.requester_sector}</strong></div>
+                    <div><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Setor Impactado</small><strong>${proj.impacted_sector}</strong></div>
+                    <div><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Prioridade</small><strong>${proj.priority}</strong></div>
+                    ${proj.priority_justification ? `<div style="grid-column: 1 / -1;"><small style="color:var(--color-danger); text-transform:uppercase; font-weight:700; display:block;">Justificativa Alta Prioridade</small><span>${proj.priority_justification}</span></div>` : ''}
+                    <div style="grid-column: 1 / -1; margin-top:4px;"><small style="color:var(--color-text-secondary); text-transform:uppercase; font-weight:700; display:block;">Descrição / Aplicação</small><p style="margin:4px 0 0 0; white-space:pre-wrap;">${proj.description}</p></div>
+                    ${anexoHTML}
+                </div>
+            </div>
+        `;
+
+        // Etapa 2: Planejamento
+        const planHistory = history.find(h => h.status === 'planned');
+        if (planHistory || proj.scheduled_at) {
+            const planUser = proj.planner_name || planHistory?.changed_by_name || 'Gestão';
+            const planDate = planHistory ? new Date(planHistory.created_at).toLocaleString('pt-BR') : 'N/A';
+            const schedDate = proj.scheduled_at ? new Date(proj.scheduled_at).toLocaleString('pt-BR') : 'N/A';
+
+            timelineHTML += `
+                <div style="margin-bottom: 2rem; position: relative;">
+                    <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-warning); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-warning);"></div>
+                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-warning); letter-spacing: 0.05em;">Etapa 2: Planejamento</div>
+                    <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Projeto Planejado e Estimado</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${planUser} • ${planDate}</div>
+                    <div style="font-size: 0.85rem; color: var(--color-text-primary); margin-top: 8px; background: var(--color-background); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+                        <div><strong style="color: var(--color-text-secondary);">Previsão de Entrega:</strong> ${schedDate}</div>
+                        <div style="margin-top: 4px;"><strong style="color: var(--color-text-secondary);">Observações do Planejamento:</strong> ${proj.plan_notes || 'Nenhuma.'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Etapa 3: Execução
+        const execHistory = history.find(h => h.status === 'executed');
+        if (execHistory || proj.real_execution_at) {
+            const execUser = proj.executor_name || execHistory?.changed_by_name || 'Gestão';
+            const execDate = execHistory ? new Date(execHistory.created_at).toLocaleString('pt-BR') : 'N/A';
+            const realDate = proj.real_execution_at ? new Date(proj.real_execution_at).toLocaleString('pt-BR') : 'N/A';
+
+            timelineHTML += `
+                <div style="margin-bottom: 2rem; position: relative;">
+                    <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-success); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-success);"></div>
+                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: var(--color-success); letter-spacing: 0.05em;">Etapa 3: Execução</div>
+                    <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Projeto Concluído e Entregue</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${execUser} • ${execDate}</div>
+                    <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-success-bg); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px; border-radius: 8px;">
+                        <div><strong style="color: var(--color-success);">Data Real:</strong> ${realDate}</div>
+                        <div style="margin-top: 4px;"><strong style="color: var(--color-success);">Seguiu o planejado?</strong> ${proj.followed_plan ? 'Sim' : 'Não'}</div>
+                        <div style="margin-top: 4px;"><strong style="color: var(--color-success);">Detalhes da Execução:</strong> ${proj.execution_notes || 'Sem detalhes.'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        timelineHTML += `</div>`;
+
+        modalBody.innerHTML = `<div style="padding: 0.5rem;">${headerHTML}${timelineHTML}</div>`;
+
+        // Botões no rodapé de acordo com a permissão
+        const p = currentUserProfile.permissions || [];
+        const canManageProjects = p.includes('manage_users') || p.includes('mgt_projects');
+        let footerActions = '';
+
+        if (canManageProjects) {
+            if (proj.status === 'pending') {
+                footerActions += `<button class="btn btn-warning" onclick="openProjectPlanningModal('${proj.id}')">Planejar</button>`;
+            } else if (proj.status === 'planned') {
+                footerActions += `<button class="btn btn-success" onclick="openProjectExecutionModal('${proj.id}')">Executar</button>`;
+            }
+        }
+
+        modalFooter.innerHTML = `<button class="btn btn-secondary" onclick="closeRequestModal()">Fechar</button>${footerActions}`;
+
+    } catch(e) {
+        modalBody.innerHTML = `<div class="empty-state" style="color:var(--color-danger)">${e.message}</div>`;
+        modalFooter.innerHTML = `<button class="btn btn-secondary" onclick="closeRequestModal()">Fechar</button>`;
+    }
+}
+
+// Funções Operacionais de Planejar e Executar Projeto
+const N8N_PLAN_PROJECT_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/plan-project-request';
+const N8N_EXECUTE_PROJECT_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/execute-project-request';
+
+function openProjectPlanningModal(projectId) {
+    document.getElementById('project-plan-request-id').value = projectId;
+    document.getElementById('project-plan-date').value = '';
+    document.getElementById('project-plan-time').value = '';
+    document.getElementById('project-plan-notes').value = '';
+    document.getElementById('project-planning-modal').classList.add('visible');
+}
+
+async function submitProjectPlan() {
+    const requestId = document.getElementById('project-plan-request-id').value;
+    const date = document.getElementById('project-plan-date').value;
+    const time = document.getElementById('project-plan-time').value;
+    const notes = document.getElementById('project-plan-notes').value.trim();
+
+    if (!date || !time) {
+        showToast("Data e hora de previsão são obrigatórias!", "warning");
+        return;
+    }
+
+    const btn = document.querySelector('#project-planning-modal .btn-warning');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_PLAN_PROJECT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                request_id: requestId,
+                scheduled_at: new Date(`${date}T${time}:00`).toISOString(),
+                notes: notes,
+                user_id: currentUserProfile.id,
+                changed_by_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Erro ao planejar projeto.");
+
+        showToast("Planejamento do projeto salvo!", "success");
+        document.getElementById('project-planning-modal').classList.remove('visible');
+
+        setTimeout(() => {
+            loadManageProjectsData();
+            if (document.getElementById('request-modal').classList.contains('visible')) {
+                openProjectDetailsModal(requestId);
+            }
+        }, 1500);
+
+    } catch (e) {
+        showToast(e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Planejamento';
+    }
+}
+
+function openProjectExecutionModal(projectId) {
+    document.getElementById('project-exec-request-id').value = projectId;
+    const now = new Date();
+    document.getElementById('project-exec-date').value = now.toISOString().split('T')[0];
+    document.getElementById('project-exec-time').value = now.toTimeString().split(' ')[0].substring(0, 5);
+    document.getElementById('project-exec-notes').value = '';
+    document.getElementById('project-execution-modal').classList.add('visible');
+}
+
+async function submitProjectExecution() {
+    const requestId = document.getElementById('project-exec-request-id').value;
+    const date = document.getElementById('project-exec-date').value;
+    const time = document.getElementById('project-exec-time').value;
+    const followedPlan = document.querySelector('input[name="proj-exec-followed"]:checked')?.value === 'true';
+    const notes = document.getElementById('project-exec-notes').value.trim();
+
+    if (!date || !time) {
+        showToast("Data e hora real de conclusão são obrigatórias!", "warning");
+        return;
+    }
+
+    const btn = document.querySelector('#project-execution-modal .btn-success');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_EXECUTE_PROJECT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                request_id: requestId,
+                real_execution_at: new Date(`${date}T${time}:00`).toISOString(),
+                followed_plan: followedPlan,
+                notes: notes,
+                user_id: currentUserProfile.id,
+                changed_by_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Erro ao registrar conclusão.");
+
+        showToast("Projeto concluído e arquivado no histórico!", "success");
+        document.getElementById('project-execution-modal').classList.remove('visible');
+
+        setTimeout(() => {
+            loadManageProjectsData();
+            if (document.getElementById('request-modal').classList.contains('visible')) {
+                openProjectDetailsModal(requestId);
+            }
+        }, 1500);
+
+    } catch (e) {
+        showToast(e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Conclusão';
+    }
+}
+
+// ===================================================================
+// FIM: MÓDULO DE PROJETOS E FERRAMENTARIA
+// ===================================================================
+
+
 // ==========================================
 // FUNÇÕES DO PAINEL DE FILTRO RETRÁTIL
 // ==========================================
 function toggleFilterPanel() {
     const content = document.getElementById('filter-panel-content');
     const icon = document.getElementById('filter-panel-toggle-icon');
-    
-    // Verifica se está visível para decidir a ação
+    if (!content) return;
+
     const isVisible = content.style.maxHeight && content.style.maxHeight !== '0px';
 
     if (isVisible) {
@@ -19119,27 +19930,24 @@ function toggleFilterPanel() {
         content.style.paddingTop = '0';
         content.style.paddingBottom = '0';
         content.style.marginTop = '0';
-        icon.style.transform = 'rotate(180deg)';
+        if (icon) icon.style.transform = 'rotate(180deg)';
         localStorage.setItem('fama_filter_panel_visible', 'false');
     } else {
-        content.style.maxHeight = content.scrollHeight + "px";
-        content.style.paddingTop = null; // Volta para o padrão
-        content.style.paddingBottom = null; // Volta para o padrão
+        content.style.maxHeight = (content.scrollHeight + 50) + 'px';
+        content.style.paddingTop = '';
+        content.style.paddingBottom = '';
         content.style.marginTop = '1.5rem';
-        icon.style.transform = 'rotate(0deg)';
+        if (icon) icon.style.transform = 'rotate(0deg)';
         localStorage.setItem('fama_filter_panel_visible', 'true');
     }
 }
 
-// Garante que o painel de filtro seja inicializado corretamente ao carregar a página
 document.addEventListener('DOMContentLoaded', () => {
-    // Aplica o estado salvo, se houver
     const savedState = localStorage.getItem('fama_filter_panel_visible');
     const content = document.getElementById('filter-panel-content');
     const icon = document.getElementById('filter-panel-toggle-icon');
 
     if (content && icon) {
-        // Prepara a transição suave
         content.style.transition = 'all 0.3s ease-out';
         content.style.overflow = 'hidden';
 
@@ -19150,13 +19958,109 @@ document.addEventListener('DOMContentLoaded', () => {
             content.style.marginTop = '0';
             icon.style.transform = 'rotate(180deg)';
         } else {
-            // Se não houver estado salvo, ou se for 'true', deixa aberto.
-            // Não precisa de 'scrollHeight' aqui, pois a página acabou de carregar.
-            content.style.maxHeight = '500px'; // Um valor alto o suficiente para caber tudo
+            content.style.maxHeight = '800px';
             content.style.marginTop = '1.5rem';
         }
     }
 });
+
+// ===================================================================
+// FUNÇÕES DE SUB-ITENS DA FERRAMENTARIA (CHECKLIST)
+// ===================================================================
+
+// 1. Adiciona uma linha de componente no formulário de criação
+function addToolingSubItem() {
+    const container = document.getElementById('tooling-subitems-container');
+    const div = document.createElement('div');
+    div.className = 'tooling-subitem-row';
+    div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center; background: var(--color-surface); padding: 0.5rem; border-radius: 8px; border: 1px solid var(--color-border); margin-bottom: 5px;';
+    div.innerHTML = `
+        <input type="text" class="input-field subitem-name" placeholder="Nome da Peça (Ex: Encosto)" style="flex: 2; margin: 0; padding: 0.5rem;" required>
+        <input type="text" class="input-field subitem-phase" placeholder="Fase/Obs" style="flex: 1; margin: 0; padding: 0.5rem;">
+        <button type="button" class="btn-icon" onclick="this.parentElement.remove()" title="Remover sub-item" style="color: var(--color-danger);"><span class="material-icons">delete</span></button>
+    `;
+    container.appendChild(div);
+}
+
+// 2. Aciona o Webhook quando o ferramenteiro clica no checkbox
+async function toggleToolingSubItem(requestId, itemIndex, checkboxElement) {
+    checkboxElement.disabled = true; // Evita duplo clique
+    const isCompleted = checkboxElement.checked;
+    
+    try {
+        // Busca a array mais atualizada do banco para não sobrescrever dados
+        const { data: reqData, error } = await supabaseClient
+            .from('tooling_requests')
+            .select('sub_items')
+            .eq('id', requestId)
+            .single();
+            
+        if (error) throw error;
+        
+        let subItems = reqData.sub_items || [];
+        let itemName = "Item Desconhecido";
+        if (subItems[itemIndex]) {
+            subItems[itemIndex].completed = isCompleted; // Atualiza o status
+            itemName = subItems[itemIndex].name; // Captura o nome da peça para o log
+        }
+        
+        // Envia para o n8n atualizar o JSONB E gravar o histórico
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch('https://n8n-n8n.znxk1t.easypanel.host/webhook/update-tooling-checklist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ 
+                request_id: requestId, 
+                sub_items: subItems,
+                item_name: itemName,
+                is_completed: isCompleted,
+                user_id: currentUserProfile.id,
+                user_name: currentUserProfile.full_name
+            })
+        });
+        
+        if (!response.ok) throw new Error("Falha no servidor.");
+        
+        // Atualiza a UI dinamicamente sem recarregar a tela inteira
+        const label = checkboxElement.closest('.custom-checkbox');
+        const titleSpan = label.querySelector('div > span:first-child');
+        
+        if (isCompleted) {
+            titleSpan.style.color = 'var(--color-success)';
+            titleSpan.style.textDecoration = 'line-through';
+        } else {
+            titleSpan.style.color = 'var(--color-text-primary)';
+            titleSpan.style.textDecoration = 'none';
+        }
+        
+        // Verifica se destrava o botão Executar
+        const allDone = subItems.every(i => i.completed);
+        const execBtn = document.getElementById('btn-execute-tooling');
+        if (execBtn) {
+            if (allDone) {
+                execBtn.style.opacity = '1';
+                execBtn.style.cursor = 'pointer';
+                execBtn.title = '';
+                execBtn.onclick = () => openToolingExecutionModal(requestId);
+            } else {
+                execBtn.style.opacity = '0.5';
+                execBtn.style.cursor = 'not-allowed';
+                execBtn.title = 'Conclua todos os sub-itens no Checklist primeiro';
+                execBtn.onclick = () => showToast('Finalize o checklist antes de concluir o chamado.', 'warning');
+            }
+        }
+        
+        // Atualiza o cache local para não dessincronizar
+        const cacheItem = allToolingRequestsCache.find(r => r.id === requestId);
+        if (cacheItem) cacheItem.sub_items = subItems;
+        
+    } catch (e) {
+        showToast("Erro ao sincronizar checklist.", "danger");
+        checkboxElement.checked = !isCompleted; // Desfaz visualmente se deu erro
+    } finally {
+        checkboxElement.disabled = false;
+    }
+}
     </script>
 
 <!-- NOTES MODAL (FOR APPROVAL/REJECTION) -->
@@ -19888,6 +20792,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
             <div class="form-group">
+                <label for="tooling-exec-qty">Quantidade Real Executada*</label>
+                <input type="number" id="tooling-exec-qty" class="input-field" placeholder="Informe a quantidade entregue" min="0" required>
+            </div>
+            <div class="form-group">
                 <label>Detalhes da Execução</label>
                 <textarea id="tooling-exec-notes" class="input-field" rows="3" placeholder="Ex: Entregue para o fulano, feito ajuste X..."></textarea>
             </div>
@@ -20089,6 +20997,77 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="material-icons" style="font-size: 18px; margin-right: 5px;">psychology</span> Relatório Inteligente
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: PLANEJAR PROJETO -->
+<div id="project-planning-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Planejar Projeto</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="document.getElementById('project-planning-modal').classList.remove('visible')">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">Defina a previsão de entrega e observações da equipe de projetos.</p>
+            <input type="hidden" id="project-plan-request-id">
+            <div class="grid grid-cols-2">
+                <div class="form-group">
+                    <label>Data Prevista*</label>
+                    <input type="date" id="project-plan-date" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora Prevista*</label>
+                    <input type="time" id="project-plan-time" class="input-field" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Observações do Planejamento</label>
+                <textarea id="project-plan-notes" class="input-field" rows="3" placeholder="Ex: Aguardando desenho técnico preliminar, previsto 2 dias de modelagem..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('project-planning-modal').classList.remove('visible')">Cancelar</button>
+            <button class="btn btn-warning" onclick="submitProjectPlan()">Confirmar Planejamento</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EXECUTAR PROJETO -->
+<div id="project-execution-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3>Concluir / Executar Projeto</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="document.getElementById('project-execution-modal').classList.remove('visible')">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">Registre a entrega formal do projeto.</p>
+            <input type="hidden" id="project-exec-request-id">
+            <div class="grid grid-cols-2">
+                <div class="form-group">
+                    <label>Data Real de Conclusão*</label>
+                    <input type="date" id="project-exec-date" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora Real*</label>
+                    <input type="time" id="project-exec-time" class="input-field" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Seguiu de acordo com o planejado?*</label>
+                <div class="radio-group" style="display: flex; gap: 1.5rem; margin-top: 4px;">
+                    <label><input type="radio" name="proj-exec-followed" value="true" checked> Sim</label>
+                    <label><input type="radio" name="proj-exec-followed" value="false"> Não</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Detalhes da Execução / Entrega</label>
+                <textarea id="project-exec-notes" class="input-field" rows="3" placeholder="Ex: Arquivo DWG salvo na pasta de projetos, croqui validado pelo setor solicitante..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('project-execution-modal').classList.remove('visible')">Cancelar</button>
+            <button class="btn btn-success" onclick="submitProjectExecution()">Confirmar Conclusão</button>
         </div>
     </div>
 </div>
