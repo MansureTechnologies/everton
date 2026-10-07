@@ -8,6 +8,8 @@
 
 
 
+
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -292,40 +294,57 @@ let currentEditingKBId = null; // Controle para saber se estamos editando na KB
         }
 
         /* --- NOVOS ESTILOS PARA INTERATIVIDADE DA TABELA --- */
-        /* Efeito de hover nas linhas da tabela de manutenção e ferramentaria */
+        /* Efeito de hover nas linhas da tabela de manutenção, ferramentaria e projetos */
         #manage-maintenance-table-body tr:hover,
-        #manage-tooling-table-body tr:hover {
+        #manage-tooling-table-body tr:hover,
+        #manage-projects-table-body tr:hover {
             background-color: var(--color-background);
             transform: scale(1.01);
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             transition: all 0.2s ease-out;
         }
         #manage-maintenance-table-body tr,
-        #manage-tooling-table-body tr {
+        #manage-tooling-table-body tr,
+        #manage-projects-table-body tr {
              transition: all 0.2s ease-out;
         }
 
-        /* Cores dinâmicas para os botões de filtro ativos (Manutenção E Ferramentaria) */
+        /* Cores dinâmicas para os botões de filtro ativos (Manutenção, Ferramentaria e Projetos) */
         #maintenance-filter-controls .btn.active,
-        #tooling-filter-controls .btn.active {
-             color: white;
-             border-color: transparent;
+        #tooling-filter-controls .btn.active,
+        #project-filter-controls .btn.active {
+             color: white !important;
+             border-color: transparent !important;
         }
         #maintenance-filter-controls .btn.active[data-status="all"],
-        #tooling-filter-controls .btn.active[data-status="all"] {
-            background-color: var(--color-text-secondary);
+        #tooling-filter-controls .btn.active[data-status="all"],
+        #project-filter-controls .btn.active[data-status="all"] {
+            background-color: var(--color-text-secondary) !important;
         }
         #maintenance-filter-controls .btn.active[data-status="pending"],
-        #tooling-filter-controls .btn.active[data-status="pending"] {
-            background-color: var(--color-warning);
+        #tooling-filter-controls .btn.active[data-status="pending"],
+        #project-filter-controls .btn.active[data-status="pending"] {
+            background-color: var(--color-warning) !important;
         }
         #maintenance-filter-controls .btn.active[data-status="planned"],
-        #tooling-filter-controls .btn.active[data-status="planned"] {
-            background-color: var(--color-info);
+        #tooling-filter-controls .btn.active[data-status="planned"],
+        #project-filter-controls .btn.active[data-status="planned"] {
+            background-color: var(--color-info) !important;
         }
         #maintenance-filter-controls .btn.active[data-status="executed"],
-        #tooling-filter-controls .btn.active[data-status="executed"] {
-            background-color: var(--color-success);
+        #tooling-filter-controls .btn.active[data-status="executed"],
+        #project-filter-controls .btn.active[data-status="executed"] {
+            background-color: var(--color-success) !important;
+        }
+        #maintenance-filter-controls .btn.active[data-status="rejected"],
+        #tooling-filter-controls .btn.active[data-status="rejected"],
+        #project-filter-controls .btn.active[data-status="rejected"] {
+            background-color: var(--color-danger) !important;
+        }
+        #maintenance-filter-controls .btn.active[data-status="archived"],
+        #tooling-filter-controls .btn.active[data-status="archived"],
+        #project-filter-controls .btn.active[data-status="archived"] {
+            background-color: #4b5563 !important;
         }
 
         .fab { position: fixed; right: 3rem; bottom: 3rem; width: 56px; height: 56px; background-color: var(--color-brand-primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: pointer; border: none; z-index: 100; transition: transform 0.2s; } .fab:hover { transform: scale(1.05); }
@@ -3147,19 +3166,25 @@ const appHTML = `<div id="app-container">
                     </div>
 
                      <div id="maintenance-tab-technicians" class="maintenance-tab-content" style="display:none;">
-                        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <div id="technicians-filter-controls" style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-secondary active" id="btn-tech-filter-active" onclick="filterTechniciansTab('active')">Técnicos Ativos</button>
+                                <button class="btn btn-secondary" id="btn-tech-filter-archived" onclick="filterTechniciansTab('archived')">
+                                    <span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">archive</span> Arquivados
+                                </button>
+                            </div>
                             <button class="btn btn-danger" id="btn-register-technician">
                                 <span class="material-icons">person_add</span> Registrar Técnico
                             </button>
                         </div>
-                        <div class="card" style="padding:0;">
+                        <div class="card" style="padding:0; overflow-x: auto;">
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Nome do Técnico</th>
-                                        <th>Especialidade</th>
-                                        <th>Status</th>
-                                        <th>Ações</th>
+                                        <th style="width: 35%;">Nome do Técnico</th>
+                                        <th style="width: 30%;">Especialidade</th>
+                                        <th style="width: 20%;">Status</th>
+                                        <th style="width: 15%; text-align: right;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="technicians-table-body">
@@ -3172,124 +3197,8 @@ const appHTML = `<div id="app-container">
                      <div id="maintenance-tab-preventive" class="maintenance-tab-content" style="display:none;">
                         <div class="empty-state">Calendário de Manutenção Preventiva - Em breve.</div>
                     </div>
-                    
-                    </div>
 
-                <!-- ======================================================= -->
-                <!-- NOVO MÓDULO: PROJETOS E FERRAMENTARIA -->
-                <!-- ======================================================= -->
-                <div id="projects-page" class="page-content">
-                    <div class="page-header">
-                        <div>
-                            <h1>Módulo de Projetos & Ferramentaria</h1>
-                            <p>Gestão de novos projetos, revisões e solicitações de ferramentas.</p>
-                        </div>
-                        <div class="page-header-actions">
-                            <button class="btn btn-danger" onclick="openProjectOrToolingModal()">
-                                <span class="material-icons">add</span> Nova Solicitação
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="mgt-tabs" style="flex-wrap: wrap; margin-bottom: 1.5rem;">
-                        <button class="mgt-tab-btn active" id="tab-btn-my-projects" onclick="switchProjectsTab('my_projects')">Meus Projetos</button>
-                        <button class="mgt-tab-btn" id="tab-btn-my-tooling" onclick="switchProjectsTab('my_tooling')">Minhas (Ferramentaria)</button>
-                        <button class="mgt-tab-btn" id="tab-btn-manage-projects" style="display:none;" onclick="switchProjectsTab('manage_projects')">Gestão de Projetos</button>
-                        <button class="mgt-tab-btn" id="tab-btn-manage-tooling" style="display:none;" onclick="switchProjectsTab('manage_tooling')">Gestão Ferramentaria</button>
-                    </div>
-
-                    <!-- ABA 1: MEUS PROJETOS -->
-                    <div id="projects-tab-my_projects" class="projects-tab-content">
-                        <div class="card" style="padding:0;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Tipo</th>
-                                        <th>Categoria</th>
-                                        <th>Identificação Peça</th>
-                                        <th>Setor Impactado</th>
-                                        <th>Prioridade</th>
-                                        <th>Data</th>
-                                        <th>Status</th>
-                                        <th style="text-align: right;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="my-projects-table-body">
-                                    <tr><td colspan="8" class="empty-state">Carregando projetos...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- ABA 2: MINHAS (FERRAMENTARIA) -->
-                    <div id="projects-tab-my_tooling" class="projects-tab-content" style="display:none;">
-                        <div class="card" style="padding:0;">
-                            <table class="data-table">
-                                <thead><tr><th>Item</th><th>Setor</th><th>Qtd/Estoque</th><th>Data</th><th>Status</th><th style="text-align: right;">Ações</th></tr></thead>
-                                <tbody id="my-tooling-table-body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- ABA 3: GESTÃO DE PROJETOS -->
-                    <div id="projects-tab-manage_projects" class="projects-tab-content" style="display:none;">
-                        <div class="card" style="padding:0; overflow-x: auto;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Solicitante</th>
-                                        <th>Tipo</th>
-                                        <th>Categoria</th>
-                                        <th>Identificação Peça</th>
-                                        <th>Setor Impactado</th>
-                                        <th>Prioridade</th>
-                                        <th>Data</th>
-                                        <th>Status</th>
-                                        <th style="text-align: right;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="manage-projects-table-body">
-                                    <tr><td colspan="9" class="empty-state">Carregando gestão de projetos...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- ABA 4: GESTÃO FERRAMENTARIA -->
-                    <div id="projects-tab-manage_tooling" class="projects-tab-content" style="display:none;">
-                        <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                            <div id="tooling-filter-controls" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                <button class="btn btn-secondary active" data-status="all">Todos</button>
-                                <button class="btn btn-secondary" data-status="pending">Pendentes</button>
-                                <button class="btn btn-secondary" data-status="planned">Planejadas</button>
-                                <button class="btn btn-secondary" data-status="executed">Executadas</button>
-                                <button class="btn btn-secondary" data-status="archived" style="margin-left: auto;"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">archive</span> Arquivadas</button>
-                            </div>
-                            <button class="btn btn-secondary" onclick="openExportToolingModal()">
-                                <span class="material-icons" style="font-size:18px; color: #1D6F42;">table_view</span> Exportar Excel
-                            </button>
-                        </div>
-                        <div class="card" style="padding:0; overflow-x: auto;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Solicitante</th>
-                                        <th>Item</th>
-                                        <th>Qtd / Estoque</th>
-                                        <th>Setor</th>
-                                        <th>Prioridade</th>
-                                        <th>Status</th>
-                                        <th style="text-align: right;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="manage-tooling-table-body">
-                                    <tr><td colspan="7" class="empty-state">Carregando ferramentaria...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- ABA: ACERVO DE MÁQUINAS -->
+                    <!-- ABA: ACERVO DE MÁQUINAS (DENTRO DE MANUTENÇÃO) -->
                     <div id="maintenance-tab-machines" class="maintenance-tab-content" style="display:none;">
                         <div class="card" style="padding: 1.5rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
@@ -3359,7 +3268,211 @@ const appHTML = `<div id="app-container">
                             </table>
                         </div>
                     </div>
-                </div>
+                </div> <!-- FECHAMENTO CORRETO DO MÓDULO DE MANUTENÇÃO -->
+
+                <!-- ======================================================= -->
+                <!-- NOVO MÓDULO: PROJETOS E FERRAMENTARIA -->
+                <!-- ======================================================= -->
+                <div id="projects-page" class="page-content">
+                    <div class="page-header">
+                        <div>
+                            <h1>Módulo de Projetos & Ferramentaria</h1>
+                            <p>Gestão de novos projetos, revisões e solicitações de ferramentas.</p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-danger" onclick="openProjectOrToolingModal()">
+                                <span class="material-icons">add</span> Nova Solicitação
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mgt-tabs" style="flex-wrap: wrap; margin-bottom: 1.5rem;">
+                        <button class="mgt-tab-btn active" id="tab-btn-my-projects" onclick="switchProjectsTab('my_projects')">Meus Projetos</button>
+                        <button class="mgt-tab-btn" id="tab-btn-my-tooling" onclick="switchProjectsTab('my_tooling')">Minhas (Ferramentaria)</button>
+                        <button class="mgt-tab-btn" id="tab-btn-manage-projects" style="display:none;" onclick="switchProjectsTab('manage_projects')">Gestão de Projetos</button>
+                        <button class="mgt-tab-btn" id="tab-btn-manage-tooling" style="display:none;" onclick="switchProjectsTab('manage_tooling')">Gestão Ferramentaria</button>
+                    </div>
+
+                    <!-- ABA 1: MEUS PROJETOS -->
+                    <div id="projects-tab-my_projects" class="projects-tab-content">
+                        <div class="card" style="padding:0;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Categoria</th>
+                                        <th>Identificação Peça</th>
+                                        <th>Setor Impactado</th>
+                                        <th>Prioridade</th>
+                                        <th>Data</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="my-projects-table-body">
+                                    <tr><td colspan="8" class="empty-state">Carregando projetos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ABA 2: MINHAS (FERRAMENTARIA) -->
+                    <div id="projects-tab-my_tooling" class="projects-tab-content" style="display:none;">
+                        <div class="card" style="padding:0;">
+                            <table class="data-table">
+                                <thead><tr><th>Item</th><th>Setor</th><th>Qtd/Estoque</th><th>Data</th><th>Status</th><th style="text-align: right;">Ações</th></tr></thead>
+                                <tbody id="my-tooling-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ABA 3: GESTÃO DE PROJETOS -->
+                    <div id="projects-tab-manage_projects" class="projects-tab-content" style="display:none;">
+                        
+                        <!-- Painel de Filtros Retrátil Estilo Manutenção -->
+                        <div class="card" style="padding: 0; margin-bottom: 1.5rem; overflow: hidden;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; cursor: pointer; background: var(--color-background);" onclick="toggleProjectFilterPanel()">
+                                <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    <span class="material-icons" style="color: var(--color-text-secondary);">filter_alt</span>
+                                    Filtros e Opções de Visualização
+                                </h3>
+                                <span id="proj-filter-toggle-icon" class="material-icons" style="transition: transform 0.2s;">expand_less</span>
+                            </div>
+
+                            <div id="proj-filter-panel-content" style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                                <!-- Filtro de Status Rápido -->
+                                <div id="project-filter-controls" style="display: flex; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1rem;">
+                                    <button class="btn btn-secondary active" data-status="all">Todos os Status</button>
+                                    <button class="btn btn-secondary" data-status="pending">Pendentes</button>
+                                    <button class="btn btn-secondary" data-status="planned">Planejadas</button>
+                                    <button class="btn btn-secondary" data-status="executed">Concluídos</button>
+                                    <button class="btn btn-secondary" data-status="rejected">Recusadas</button>
+                                    <button class="btn btn-secondary" data-status="archived" style="margin-left: auto;">
+                                        <span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">archive</span> Arquivados
+                                    </button>
+                                </div>
+
+                                <!-- Filtros Detalhados Sem Sobreposição -->
+                                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+                                    <div class="form-group" style="margin: 0; flex: 1.4; min-width: 170px;">
+                                        <label style="font-size: 0.8rem;">Solicitante</label>
+                                        <select id="filter-proj-requester" class="input-field" onchange="applyAdvancedProjectFilters()">
+                                            <option value="all">Todos os Solicitantes</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0; flex: 1; min-width: 140px;">
+                                        <label style="font-size: 0.8rem;">Categoria</label>
+                                        <select id="filter-proj-category" class="input-field" onchange="applyAdvancedProjectFilters()">
+                                            <option value="all">Todas</option>
+                                            <option value="Mola">Mola</option>
+                                            <option value="Ferramenta">Ferramenta</option>
+                                            <option value="Máquina-peça">Máquina-peça</option>
+                                            <option value="Máquina">Máquina</option>
+                                            <option value="Artefato">Artefato</option>
+                                            <option value="Ferramental-Fundição">Ferramental-Fundição</option>
+                                            <option value="Infraestrutura">Infraestrutura</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0; flex: 0.8; min-width: 110px;">
+                                        <label style="font-size: 0.8rem;">Prioridade</label>
+                                        <select id="filter-proj-priority" class="input-field" onchange="applyAdvancedProjectFilters()">
+                                            <option value="all">Todas</option>
+                                            <option value="Alta">Alta</option>
+                                            <option value="Média">Média</option>
+                                            <option value="Baixa">Baixa</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0; flex: 1.4; min-width: 170px;">
+                                        <label style="font-size: 0.8rem;">Setor Impactado</label>
+                                        <select id="filter-proj-sector" class="input-field" onchange="applyAdvancedProjectFilters()">
+                                            <option value="all">Todos os Setores</option>
+                                            <option value="Helicoidal">Helicoidal</option>
+                                            <option value="Plana">Plana</option>
+                                            <option value="Fundição">Fundição</option>
+                                            <option value="Fundição Cold-Box">Fundição Cold-Box</option>
+                                            <option value="Usinagem">Usinagem</option>
+                                            <option value="Ferramentaria">Ferramentaria</option>
+                                            <option value="Qualidade">Qualidade</option>
+                                            <option value="Comercial">Comercial</option>
+                                            <option value="Manutenção">Manutenção</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0; flex: 2.5; min-width: 290px;">
+                                        <label style="font-size: 0.8rem;">Período (Início e Fim)</label>
+                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                            <input type="date" id="filter-proj-date-start" class="input-field" style="flex: 1; min-width: 0; padding: 0.6rem 0.5rem; font-size: 0.85rem;" onchange="applyAdvancedProjectFilters()">
+                                            <input type="date" id="filter-proj-date-end" class="input-field" style="flex: 1; min-width: 0; padding: 0.6rem 0.5rem; font-size: 0.85rem;" onchange="applyAdvancedProjectFilters()">
+                                        </div>
+                                    </div>
+                                    <div style="flex-shrink: 0; margin-bottom: 2px;">
+                                        <button class="btn btn-secondary" onclick="clearAdvancedProjectFilters()" title="Limpar Filtros" style="height: 42px; width: 42px; padding: 0; display: inline-flex; align-items: center; justify-content: center;">
+                                            <span class="material-icons" style="font-size: 20px; margin: 0;">filter_alt_off</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Paginação -->
+                                <div id="project-pagination-controls" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; border-top: 1px dashed var(--color-border); padding-top: 0.75rem;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tabela Moderna SaaS com Hover -->
+                        <div class="card transparent-card" style="overflow-x: auto; padding-bottom: 1rem !important;">
+                            <table class="modern-list-table" id="main-projects-table" style="min-width: 1050px;">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 15%;">Solicitante</th>
+                                        <th style="width: 11%;">Tipo</th>
+                                        <th style="width: 11%;">Categoria</th>
+                                        <th style="width: 18%;">Identificação Peça</th>
+                                        <th style="width: 13%;">Setor Impactado</th>
+                                        <th style="width: 9%;">Prioridade</th>
+                                        <th style="width: 9%;">Data</th>
+                                        <th style="width: 9%;">Status</th>
+                                        <th style="width: 15%; text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="manage-projects-table-body">
+                                    <tr><td colspan="9" class="empty-state">Carregando gestão de projetos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ABA 4: GESTÃO FERRAMENTARIA -->
+                    <div id="projects-tab-manage_tooling" class="projects-tab-content" style="display:none;">
+                        <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                            <div id="tooling-filter-controls" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn btn-secondary active" data-status="all">Todos</button>
+                                <button class="btn btn-secondary" data-status="pending">Pendentes</button>
+                                <button class="btn btn-secondary" data-status="planned">Planejadas</button>
+                                <button class="btn btn-secondary" data-status="executed">Executadas</button>
+                                <button class="btn btn-secondary" data-status="archived" style="margin-left: auto;"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">archive</span> Arquivadas</button>
+                            </div>
+                            <button class="btn btn-secondary" onclick="openExportToolingModal()">
+                                <span class="material-icons" style="font-size:18px; color: #1D6F42;">table_view</span> Exportar Excel
+                            </button>
+                        </div>
+                        <div class="card" style="padding:0; overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Solicitante</th>
+                                        <th>Item</th>
+                                        <th>Qtd / Estoque</th>
+                                        <th>Setor</th>
+                                        <th>Prioridade</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="manage-tooling-table-body">
+                                    <tr><td colspan="7" class="empty-state">Carregando ferramentaria...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div> <!-- FECHAMENTO CORRETO DO MÓDULO DE PROJETOS -->
 
                 <!-- REGISTER MACHINE MODAL -->
                 <div id="register-machine-modal" class="modal-overlay">
@@ -7391,13 +7504,83 @@ function renderRequestForm(type) {
                     title = 'Requisição de Horas Extras';
                     formHTML = `
                         <h3 class="form-section-title">Informações das Horas Extras</h3>
-                        <div class="form-group"><label for="req-data-he">Data a ser realizada*</label><input type="date" id="req-data-he" name="data_he" class="input-field" required></div>
-                        <div class="form-group"><label for="req-horario-adicional">Horário Adicional (Ex: Das 08h às 16h - 8 horas)*</label><input type="text" id="req-horario-adicional" name="horario_adicional" class="input-field" required></div>
+                        <div class="grid grid-cols-3">
+                            <div class="form-group">
+                                <label for="req-data-he">Data da HE*</label>
+                                <input type="date" id="req-data-he" name="data_he" class="input-field" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="req-hora-inicio">Início*</label>
+                                <input type="time" id="req-hora-inicio" name="hora_inicio" class="input-field" required onchange="calculateOvertimeHours()">
+                            </div>
+                            <div class="form-group">
+                                <label for="req-hora-fim">Fim*</label>
+                                <input type="time" id="req-hora-fim" name="hora_fim" class="input-field" required onchange="calculateOvertimeHours()">
+                            </div>
+                        </div>
+
+                        <!-- Indicador visual da duração calculada -->
+                        <div id="he-duration-badge" style="font-size: 0.8rem; color: var(--color-info); margin-top: -0.5rem; margin-bottom: 0.75rem; font-weight: 600;"></div>
+
+                        <!-- Campo oculto para manter compatibilidade com o n8n e WhatsApp -->
+                        <input type="hidden" id="req-horario-adicional" name="horario_adicional" required>
+
+                        <div class="form-group">
+                            <label for="req-setor-he">Setor onde será realizada a HE*</label>
+                            <input type="text" id="req-setor-he" name="setor_he" class="input-field" placeholder="Ex: Fundição, Molas, Usinagem..." required>
+                        </div>
+
+                        <!-- SELETOR DINÂMICO DE FUNCIONÁRIOS DO BANCO -->
+                        <h3 class="form-section-title">Colaboradores Escalados</h3>
+                        <div style="background: var(--color-background); border: 1px solid var(--color-border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <!-- Barra de Filtros -->
+                            <div class="grid grid-cols-3" style="gap: 0.5rem; margin-bottom: 0.75rem;">
+                                <select id="he-filter-dept" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;" onchange="filterRhEmployees()">
+                                    <option value="">Todos Departamentos</option>
+                                </select>
+                                <select id="he-filter-role" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;" onchange="filterRhEmployees()">
+                                    <option value="">Todas Funções</option>
+                                </select>
+                                <input type="text" id="he-filter-search" class="input-field" style="padding: 0.4rem; font-size: 0.8rem;" placeholder="Buscar por nome..." oninput="filterRhEmployees()">
+                            </div>
+
+                            <!-- Lista de Colaboradores com Checkbox -->
+                            <div id="he-employees-list" style="max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem; border: 1px solid var(--color-border); border-radius: 6px; padding: 0.5rem; background: var(--color-surface);">
+                                <div class="empty-state" style="padding: 1rem; font-size: 0.85rem;">Carregando colaboradores...</div>
+                            </div>
+
+                            <!-- Resumo e Ação Manual -->
+                            <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <span id="he-selected-count" style="font-size: 0.85rem; font-weight: 700; color: var(--color-brand-primary);">0 colaborador(es) selecionado(s)</span>
+                                <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;" onclick="toggleManualEmployeesInput()">
+                                    <span class="material-icons" style="font-size: 14px; margin-right: 4px;">edit_note</span> Inserir Manualmente
+                                </button>
+                            </div>
+
+                            <!-- Campo de Inserção Manual (Fallback) -->
+                            <div id="he-manual-wrapper" style="display: none; margin-top: 0.75rem; border-top: 1px dashed var(--color-border); padding-top: 0.75rem;">
+                                <label style="font-size: 0.8rem; font-weight: 600; color: var(--color-text-secondary);">Nomes dos colaboradores não encontrados no sistema:</label>
+                                <textarea id="he-manual-names" class="input-field" rows="2" placeholder="Digite os nomes separados por vírgula..." oninput="updateOvertimeEmployeesSummary()"></textarea>
+                            </div>
+
+                            <input type="hidden" id="req-colaboradores-he" name="colaboradores_escalados">
+                        </div>
+
                         <div class="grid grid-cols-2">
-                            <div class="form-group"><label for="req-qtd-funcionarios">Quantidade de Funcionários*</label><input type="number" id="req-qtd-funcionarios" name="qtd_funcionarios" class="input-field" value="1" required></div>
-                            <div class="form-group"><label for="req-setor-he">Setor a realizar as Horas Extras*</label><input type="text" id="req-setor-he" name="setor_he" class="input-field" required></div>
+                            <div class="form-group">
+                                <label for="req-qtd-funcionarios">Quantidade Total de Funcionários*</label>
+                                <input type="number" id="req-qtd-funcionarios" name="qtd_funcionarios" class="input-field" value="0" min="1" required readonly style="background: var(--color-background); cursor: not-allowed;">
+                            </div>
+                        </div>
+
+                        <!-- JUSTIFICATIVA OBRIGATÓRIA -->
+                        <div class="form-group">
+                            <label for="req-justificativa-he">Justificativa da Hora Extra*</label>
+                            <p style="font-size:0.8rem; color:var(--color-text-secondary); margin-top:-0.5rem;">Descreva detalhadamente o motivo da necessidade desta hora extra.</p>
+                            <textarea id="req-justificativa-he" name="justificativa" class="input-field" rows="3" placeholder="Ex: Necessidade de antecipação do lote X para atender prazo do cliente Y..." required></textarea>
                         </div>
                     `;
+                    setTimeout(() => loadRhEmployeesForOvertime(), 100);
                     break;
 
                 case 'training':
@@ -9943,59 +10126,208 @@ function renderMaintenanceTable(containerId, requests, isManagerView = false) {
             }).join('');
         }
 		
+const N8N_ARCHIVE_TECHNICIAN_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/archive-technician';
+const N8N_UNARCHIVE_TECHNICIAN_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/unarchive-technician';
+
+let currentTechniciansTabFilter = 'active';
+
+function filterTechniciansTab(status) {
+    currentTechniciansTabFilter = status;
+    const btnActive = document.getElementById('btn-tech-filter-active');
+    const btnArchived = document.getElementById('btn-tech-filter-archived');
+    if (btnActive && btnArchived) {
+        btnActive.classList.toggle('active', status === 'active');
+        btnArchived.classList.toggle('active', status === 'archived');
+    }
+    loadTechnicians();
+}
+
 async function loadTechnicians() {
     const tableBody = document.getElementById('technicians-table-body');
-    // 1. Exibe uma mensagem de "carregando" enquanto busca os dados
+    if (!tableBody) return;
     tableBody.innerHTML = `<tr><td colspan="4" class="empty-state">Carregando equipe técnica...</td></tr>`;
 
-    // 2. Busca os dados no Supabase, ordenando por nome para uma melhor visualização
     const { data: technicians, error } = await supabaseClient
         .from('maintenance_technicians')
-        .select('id, name, specialty, is_active')
+        .select('*')
         .order('name');
 
-    // 3. Se houver um erro na consulta, exibe uma mensagem de falha
     if (error) {
         console.error("Erro ao carregar técnicos:", error);
         tableBody.innerHTML = `<tr><td colspan="4" class="empty-state" style="color:var(--color-danger);">Erro ao carregar técnicos.</td></tr>`;
         return;
     }
 
-    // 4. Se a consulta for bem-sucedida mas não retornar registros, exibe a mensagem correta
-    if (!technicians || technicians.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="empty-state">Nenhum técnico registrado.</td></tr>`;
+    const isArchivedFilter = currentTechniciansTabFilter === 'archived';
+    const filteredTechs = (technicians || []).filter(tech => {
+        const isArchived = tech.is_archived === true || tech.is_active === false;
+        return isArchivedFilter ? isArchived : !isArchived;
+    });
+
+    if (filteredTechs.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="4" class="empty-state">${isArchivedFilter ? 'Nenhum técnico arquivado.' : 'Nenhum técnico ativo registrado.'}</td></tr>`;
         return;
     }
 
-    // 5. Limpa a tabela para remover a mensagem de "carregando"
     tableBody.innerHTML = ''; 
 
-    // 6. Itera sobre cada técnico retornado para criar uma linha na tabela
-    technicians.forEach(tech => {
+    filteredTechs.forEach(tech => {
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${tech.name}</td>
-            <td>${tech.specialty || 'N/A'}</td>
-            <td>
-                <span class="status-tag ${tech.is_active ? 'status-approved' : 'status-rejected'}">
-                    ${tech.is_active ? 'Ativo' : 'Inativo'}
-                </span>
-            </td>
-            <td>
+        const isArchived = tech.is_archived === true || tech.is_active === false;
+        
+        let statusBadge = '';
+        let reasonHTML = '';
+        let actionButtonsHTML = '';
+
+        if (isArchived) {
+            statusBadge = `<span class="status-tag status-rejected">Arquivado</span>`;
+            if (tech.archive_reason) {
+                reasonHTML = `<div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px; line-height: 1.2;">
+                    <strong>Motivo:</strong> ${tech.archive_reason}
+                </div>`;
+            }
+            actionButtonsHTML = `
                 <button class="btn btn-icon" title="Editar"><span class="material-icons">edit</span></button>
+                <button class="btn btn-icon" title="Desarquivar Técnico" style="color: var(--color-info); margin-left: 6px;"><span class="material-icons">unarchive</span></button>
+            `;
+        } else {
+            statusBadge = `<span class="status-tag status-approved">Ativo</span>`;
+            actionButtonsHTML = `
+                <button class="btn btn-icon" title="Editar"><span class="material-icons">edit</span></button>
+                <button class="btn btn-icon" title="Arquivar Técnico" style="color: var(--color-text-secondary); margin-left: 6px;"><span class="material-icons">archive</span></button>
+            `;
+        }
+
+        row.innerHTML = `
+            <td>
+                <strong>${tech.name}</strong>
+                ${reasonHTML}
+            </td>
+            <td>${tech.specialty || 'N/A'}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align: right;">
+                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                    ${actionButtonsHTML}
+                </div>
             </td>
         `;
 
-        // 7. Adiciona o evento de clique ao botão "Editar" da linha recém-criada
-        //    Isso garante que a função `openRegisterTechnicianModal` receba os dados corretos do técnico (`tech`)
-        const editButton = row.querySelector('button');
-        editButton.addEventListener('click', () => {
-            openRegisterTechnicianModal(tech);
-        });
+        const buttons = row.querySelectorAll('button');
+        // Botão Editar
+        buttons[0].addEventListener('click', () => openRegisterTechnicianModal(tech));
+        
+        // Botão Arquivar ou Desarquivar
+        if (buttons[1]) {
+            if (isArchived) {
+                buttons[1].addEventListener('click', () => openUnarchiveTechnicianModal(tech.id, tech.name));
+            } else {
+                buttons[1].addEventListener('click', () => openArchiveTechnicianModal(tech.id, tech.name));
+            }
+        }
 
-        // 8. Adiciona a linha completa à tabela
         tableBody.appendChild(row);
     });
+}
+
+function openArchiveTechnicianModal(techId, techName) {
+    const modal = document.getElementById('archive-technician-modal');
+    document.getElementById('archive-technician-id').value = techId;
+    document.getElementById('archive-technician-name').value = techName;
+    document.getElementById('archive-technician-notes').value = '';
+    modal.classList.add('visible');
+}
+
+function closeArchiveTechnicianModal() {
+    document.getElementById('archive-technician-modal').classList.remove('visible');
+}
+
+async function submitArchiveTechnician() {
+    const techId = document.getElementById('archive-technician-id').value;
+    const notes = document.getElementById('archive-technician-notes').value.trim();
+
+    if (!notes) {
+        showToast("O motivo do arquivamento é obrigatório.", "warning");
+        return;
+    }
+
+    const btn = document.getElementById('btn-confirm-archive-tech');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Arquivando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_ARCHIVE_TECHNICIAN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                technician_id: techId,
+                observation: notes,
+                user_id: currentUserProfile.id,
+                user_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Falha ao arquivar técnico no servidor.");
+
+        showToast("Técnico arquivado com sucesso!", "success");
+        closeArchiveTechnicianModal();
+        loadTechnicians();
+
+    } catch (e) {
+        console.error("Erro ao arquivar técnico:", e);
+        showToast("Erro: " + e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Arquivamento';
+    }
+}
+
+function openUnarchiveTechnicianModal(techId, techName) {
+    const modal = document.getElementById('unarchive-technician-modal');
+    document.getElementById('unarchive-technician-id').value = techId;
+    document.getElementById('unarchive-technician-name').value = techName;
+    document.getElementById('unarchive-technician-notes').value = '';
+    modal.classList.add('visible');
+}
+
+function closeUnarchiveTechnicianModal() {
+    document.getElementById('unarchive-technician-modal').classList.remove('visible');
+}
+
+async function submitUnarchiveTechnician() {
+    const techId = document.getElementById('unarchive-technician-id').value;
+    const notes = document.getElementById('unarchive-technician-notes').value.trim();
+
+    const btn = document.getElementById('btn-confirm-unarchive-tech');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Reativando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_UNARCHIVE_TECHNICIAN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                technician_id: techId,
+                observation: notes,
+                user_id: currentUserProfile.id,
+                user_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Falha ao reativar técnico no servidor.");
+
+        showToast("Técnico reativado com sucesso!", "success");
+        closeUnarchiveTechnicianModal();
+        loadTechnicians();
+
+    } catch (e) {
+        console.error("Erro ao desarquivar técnico:", e);
+        showToast("Erro: " + e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Reativação';
+    }
 }
 
 async function openRegisterTechnicianModal(technicianData = null) {
@@ -10174,15 +10506,24 @@ function changeItemsPerPage(value) {
                     });
                 });
 
-                const { data: allReqs, error: allReqsError } = await supabaseClient.rpc('get_all_requests_for_viewing');
+                // Consulta direta e completa à tabela de requests (mesma fonte do Compras)
+                const { data: allReqs, error: allReqsError } = await supabaseClient
+                    .from('requests')
+                    .select('*, requester:profiles!requests_requester_id_fkey(full_name)')
+                    .eq('type', 'maintenance')
+                    .order('created_at', { ascending: false });
+
                 if (allReqsError) {
+                    console.error("Erro ao carregar chamados de manutenção:", allReqsError);
                     document.getElementById('manage-maintenance-table-body').innerHTML = `<tr><td colspan="7" class="empty-state">Erro ao carregar pendências.</td></tr>`;
                 } else {
-                    allMaintenanceRequestsCache = (allReqs || []).filter(r => r.type === 'maintenance');
-                    // Associa a flag de "Aguardando Peça"
-                    allMaintenanceRequestsCache = allMaintenanceRequestsCache.map(r => ({ ...r, is_waiting_part: waitingRequestIds.has(r.id) }));
+                    allMaintenanceRequestsCache = (allReqs || []).map(r => ({
+                        ...r,
+                        requester_name: r.requester ? r.requester.full_name : (r.data?.solicitante || 'N/A'),
+                        is_waiting_part: waitingRequestIds.has(r.id)
+                    }));
                     
-                    populateMaintenanceRequesters(); // <--- PREENCHE O DROPDOWN AQUI
+                    populateMaintenanceRequesters(); // Preenche o dropdown de solicitantes
                     renderOptimizedMaintenanceTable();
                 }
                 
@@ -13495,7 +13836,7 @@ function promptSelection(title, options, callback) {
 
 let selectedTechnicians = []; // Array global para armazenar os técnicos selecionados
 
-// Abre o modal de seleção e popula com a lista de técnicos
+// Abre o modal de seleção e popula com a lista de técnicos (exclui arquivados)
 async function openTechnicianSelectorModal() {
     const modal = document.getElementById('technician-selector-modal');
     const tableBody = document.getElementById('technician-selector-table-body');
@@ -13505,7 +13846,7 @@ async function openTechnicianSelectorModal() {
 
     const { data: technicians, error } = await supabaseClient
         .from('maintenance_technicians')
-        .select('id, name, specialty')
+        .select('*')
         .eq('is_active', true)
         .order('name');
     
@@ -13514,7 +13855,8 @@ async function openTechnicianSelectorModal() {
         return;
     }
 
-    renderTechnicianSelectorList(technicians);
+    const availableTechnicians = technicians.filter(t => t.is_archived !== true && t.is_active !== false);
+    renderTechnicianSelectorList(availableTechnicians);
 }
 
 // Renderiza a lista de técnicos no modal de seleção
@@ -13562,10 +13904,13 @@ function toggleTechnicianSelection(rowElement, id, name, specialty) {
     document.getElementById('technician-selected-count').textContent = `${selectedTechnicians.length} selecionados`;
 }
 
-// Função de filtro para a barra de busca
+// Função de filtro para a barra de busca (exclui arquivados)
 async function filterTechnicians() {
-    const { data: technicians } = await supabaseClient.from('maintenance_technicians').select('id, name, specialty').eq('is_active', true).order('name');
-    if(technicians) renderTechnicianSelectorList(technicians);
+    const { data: technicians } = await supabaseClient.from('maintenance_technicians').select('*').eq('is_active', true).order('name');
+    if(technicians) {
+        const availableTechnicians = technicians.filter(t => t.is_archived !== true && t.is_active !== false);
+        renderTechnicianSelectorList(availableTechnicians);
+    }
 }
 
 // Fecha o modal de seleção e atualiza a exibição de "pills"
@@ -13596,9 +13941,12 @@ function renderSelectedTechnicianPills() {
 async function removeSelectedTechnician(id) {
     selectedTechnicians = selectedTechnicians.filter(t => t.id !== id);
     renderSelectedTechnicianPills();
-    // Atualiza a lista no modal de seleção para refletir a remoção
-    const { data: technicians } = await supabaseClient.from('maintenance_technicians').select('id, name, specialty').eq('is_active', true).order('name');
-    if(technicians) renderTechnicianSelectorList(technicians);
+    // Atualiza a lista no modal de seleção para refletir a remoção (exclui arquivados)
+    const { data: technicians } = await supabaseClient.from('maintenance_technicians').select('*').eq('is_active', true).order('name');
+    if(technicians) {
+        const availableTechnicians = technicians.filter(t => t.is_archived !== true && t.is_active !== false);
+        renderTechnicianSelectorList(availableTechnicians);
+    }
 }
 
 // FUNÇÃO ATUALIZADA que abre o modal principal de planejamento
@@ -19287,10 +19635,73 @@ async function loadMyProjectsData() {
     }
 }
 
+const N8N_ARCHIVE_PROJECT_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/archive-project-request';
+const N8N_UNARCHIVE_PROJECT_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/unarchive-project-request';
+
+let allProjectsManagementCache = [];
+let currentProjectStatusFilter = 'all';
+let currentProjectPage = 1;
+let projectItemsPerPage = 50;
+
+function toggleProjectFilterPanel() {
+    const content = document.getElementById('proj-filter-panel-content');
+    const icon = document.getElementById('proj-filter-toggle-icon');
+    if (!content) return;
+    const isVisible = content.style.display !== 'none';
+    content.style.display = isVisible ? 'none' : 'block';
+    if (icon) icon.style.transform = isVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function applyAdvancedProjectFilters() {
+    currentProjectPage = 1;
+    renderOptimizedProjectsTable();
+}
+
+function clearAdvancedProjectFilters() {
+    document.getElementById('filter-proj-requester').value = 'all';
+    document.getElementById('filter-proj-category').value = 'all';
+    document.getElementById('filter-proj-priority').value = 'all';
+    document.getElementById('filter-proj-sector').value = 'all';
+    document.getElementById('filter-proj-date-start').value = '';
+    document.getElementById('filter-proj-date-end').value = '';
+    applyAdvancedProjectFilters();
+}
+
+function populateProjectRequesters() {
+    const select = document.getElementById('filter-proj-requester');
+    if (!select) return;
+    const requesters = [...new Set(allProjectsManagementCache.map(r => r.requester_name).filter(Boolean))].sort();
+    select.innerHTML = '<option value="all">Todos os Solicitantes</option>' + 
+                       requesters.map(r => `<option value="${r}">${r}</option>`).join('');
+}
+
+function changeProjectItemsPerPage(val) {
+    projectItemsPerPage = parseInt(val);
+    currentProjectPage = 1;
+    renderOptimizedProjectsTable();
+}
+
+function changeProjectPage(dir) {
+    currentProjectPage += dir;
+    renderOptimizedProjectsTable();
+}
+
 async function loadManageProjectsData() {
     const tableBody = document.getElementById('manage-projects-table-body');
     if (!tableBody) return;
     tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">Carregando gestão de projetos...</td></tr>';
+
+    document.querySelectorAll('#project-filter-controls button').forEach(button => {
+        const newBtn = button.cloneNode(true);
+        button.parentNode.replaceChild(newBtn, button);
+        newBtn.addEventListener('click', () => {
+            currentProjectStatusFilter = newBtn.dataset.status;
+            currentProjectPage = 1;
+            document.querySelectorAll('#project-filter-controls button').forEach(b => b.classList.remove('active'));
+            newBtn.classList.add('active');
+            renderOptimizedProjectsTable();
+        });
+    });
 
     try {
         const { data, error } = await supabaseClient
@@ -19299,44 +19710,249 @@ async function loadManageProjectsData() {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (!data || data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">Nenhum projeto encontrado.</td></tr>';
-            return;
+        allProjectsManagementCache = data || [];
+        
+        populateProjectRequesters();
+        renderOptimizedProjectsTable();
+    } catch(e) {
+        console.error("Erro ao carregar projetos:", e);
+        tableBody.innerHTML = '<tr><td colspan="9" class="empty-state" style="color:var(--color-danger)">Erro ao carregar gestão de projetos.</td></tr>';
+    }
+}
+
+function renderOptimizedProjectsTable() {
+    const tableBody = document.getElementById('manage-projects-table-body');
+    const paginationContainer = document.getElementById('project-pagination-controls');
+    if (!tableBody || !paginationContainer) return;
+
+    document.querySelectorAll('#project-filter-controls button').forEach(b => {
+        const isActive = b.dataset.status === currentProjectStatusFilter;
+        b.classList.toggle('active', isActive);
+        // Limpa estilos inline residuais para que as classes CSS definam as cores exatas
+        b.style.borderColor = '';
+        b.style.background = '';
+        b.style.color = '';
+    });
+
+    let filtered = allProjectsManagementCache;
+
+    if (currentProjectStatusFilter !== 'all') {
+        if (currentProjectStatusFilter === 'archived') {
+            filtered = allProjectsManagementCache.filter(p => p.is_archived === true);
+        } else {
+            filtered = allProjectsManagementCache.filter(p => p.status === currentProjectStatusFilter && p.is_archived !== true);
+        }
+    } else {
+        filtered = allProjectsManagementCache.filter(p => p.is_archived !== true);
+    }
+
+    const reqFilter = document.getElementById('filter-proj-requester')?.value || 'all';
+    const catFilter = document.getElementById('filter-proj-category')?.value || 'all';
+    const prioFilter = document.getElementById('filter-proj-priority')?.value || 'all';
+    const secFilter = document.getElementById('filter-proj-sector')?.value || 'all';
+    const dateStart = document.getElementById('filter-proj-date-start')?.value;
+    const dateEnd = document.getElementById('filter-proj-date-end')?.value;
+
+    filtered = filtered.filter(p => {
+        const matchReq = (reqFilter === 'all') || (p.requester_name === reqFilter);
+        const matchCat = (catFilter === 'all') || (p.category === catFilter);
+        const matchPrio = (prioFilter === 'all') || (p.priority === prioFilter);
+        const matchSec = (secFilter === 'all') || (p.impacted_sector === secFilter);
+
+        let matchDate = true;
+        if (dateStart) {
+            const start = new Date(dateStart + 'T00:00:00');
+            if (new Date(p.created_at) < start) matchDate = false;
+        }
+        if (dateEnd) {
+            const end = new Date(dateEnd + 'T23:59:59');
+            if (new Date(p.created_at) > end) matchDate = false;
         }
 
-        const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Concluído', 'rejected': 'Recusada' };
-        const p = currentUserProfile.permissions || [];
-        const canManageProjects = p.includes('manage_users') || p.includes('mgt_projects');
+        return matchReq && matchCat && matchPrio && matchSec && matchDate;
+    });
 
-        tableBody.innerHTML = data.map(req => {
-            let btnAcao = '';
-            if (canManageProjects) {
+    const totalPages = Math.ceil(filtered.length / projectItemsPerPage);
+    currentProjectPage = Math.min(Math.max(1, currentProjectPage), totalPages || 1);
+    const start = (currentProjectPage - 1) * projectItemsPerPage;
+    const end = start + projectItemsPerPage;
+    const paginatedItems = filtered.slice(start, end);
+
+    if (paginatedItems.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Nenhum projeto encontrado para os filtros selecionados.</td></tr>`;
+        paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const statusLabels = { 'pending': 'Pendente', 'planned': 'Planejada', 'executed': 'Concluído', 'rejected': 'Recusada' };
+    const pPerms = currentUserProfile.permissions || [];
+    const canManageProjects = pPerms.includes('manage_users') || pPerms.includes('mgt_projects');
+
+    tableBody.innerHTML = paginatedItems.map(req => {
+        let btnAcao = '';
+        const btnDetalhes = `<button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; white-space:nowrap;" onclick="openProjectDetailsModal('${req.id}')">Detalhes</button>`;
+
+        if (canManageProjects) {
+            if (req.is_archived) {
+                btnAcao += `<button class="btn btn-icon" title="Desarquivar Projeto" onclick="openUnarchiveProjectModal('${req.id}')" style="color: var(--color-info); margin-left: 6px;"><span class="material-icons">unarchive</span></button>`;
+            } else {
                 if (req.status === 'pending') {
-                    btnAcao = `<button class="btn btn-warning" style="padding: 0.4rem 0.8rem;" onclick="openProjectPlanningModal('${req.id}')">Planejar</button>`;
+                    btnAcao += `<button class="btn btn-warning" style="padding: 0.4rem 0.8rem; margin-left: 6px; white-space:nowrap;" onclick="openProjectPlanningModal('${req.id}')">Planejar</button>`;
                 } else if (req.status === 'planned') {
-                    btnAcao = `<button class="btn btn-success" style="padding: 0.4rem 0.8rem;" onclick="openProjectExecutionModal('${req.id}')">Executar</button>`;
+                    btnAcao += `<button class="btn btn-success" style="padding: 0.4rem 0.8rem; margin-left: 6px; white-space:nowrap;" onclick="openProjectExecutionModal('${req.id}')">Executar</button>`;
                 }
+                btnAcao += `<button class="btn btn-icon" title="Arquivar Projeto" onclick="openArchiveProjectModal('${req.id}')" style="color: var(--color-text-secondary); margin-left: 6px;"><span class="material-icons">archive</span></button>`;
             }
+        }
 
-            return `
+        const priorityClass = req.priority === 'Alta' ? 'tag-urgent' : '';
+        const statusClass = `status-${req.status}`;
+
+        return `
             <tr>
-                <td><strong>${req.requester_name || 'N/A'}</strong></td>
-                <td>${req.request_type}</td>
-                <td>${req.category}</td>
-                <td>${req.part_identification || '-'}</td>
-                <td>${req.impacted_sector || '-'}</td>
-                <td><span class="tag-fino ${req.priority === 'Alta' ? 'tag-urgent' : ''}">${req.priority}</span></td>
-                <td>${new Date(req.created_at).toLocaleDateString('pt-BR')}</td>
-                <td><span class="status-tag status-${req.status}">${statusLabels[req.status] || req.status}</span></td>
-                <td style="text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
-                    <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem;" onclick="openProjectDetailsModal('${req.id}')">Detalhes</button>
-                    ${btnAcao}
+                <td><div style="font-weight: 600; color: var(--color-text-primary);">${req.requester_name || 'N/A'}</div></td>
+                <td><div style="font-size: 0.85rem; color: var(--color-text-secondary);">${req.request_type}</div></td>
+                <td><div style="font-size: 0.85rem;">${req.category}</div></td>
+                <td><div style="font-weight: 600; font-size: 0.9rem;">${req.part_identification || '-'}</div></td>
+                <td><div style="font-size: 0.85rem; color: var(--color-text-secondary);">${req.impacted_sector || '-'}</div></td>
+                <td><span class="tag-fino ${priorityClass}">${req.priority}</span></td>
+                <td><div style="font-size: 0.85rem; color: var(--color-text-secondary);">${new Date(req.created_at).toLocaleDateString('pt-BR')}</div></td>
+                <td><span class="status-tag ${statusClass}">${statusLabels[req.status] || req.status}</span></td>
+                <td style="text-align: right;">
+                    <div style="display:flex; align-items:center; justify-content: flex-end;">
+                        ${btnDetalhes}
+                        ${btnAcao}
+                    </div>
                 </td>
             </tr>
-            `;
-        }).join('');
-    } catch(e) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="empty-state" style="color:var(--color-danger)">Erro ao carregar gestão de projetos.</td></tr>';
+        `;
+    }).join('');
+
+    paginationContainer.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="font-size: 0.8rem; color: var(--color-text-secondary);">Itens por página:</label>
+            <select onchange="changeProjectItemsPerPage(this.value)" class="input-field" style="padding: 0.2rem 0.5rem; height: auto;">
+                <option value="10" ${projectItemsPerPage == 10 ? 'selected' : ''}>10</option>
+                <option value="25" ${projectItemsPerPage == 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${projectItemsPerPage == 50 ? 'selected' : ''}>50</option>
+                <option value="100" ${projectItemsPerPage == 100 ? 'selected' : ''}>100</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-icon" ${currentProjectPage <= 1 ? 'disabled' : ''} onclick="changeProjectPage(-1)"><span class="material-icons">chevron_left</span></button>
+            <span style="font-size: 0.9rem; font-weight: 500;">Página ${currentProjectPage} de ${totalPages || 1}</span>
+            <button class="btn btn-icon" ${currentProjectPage >= totalPages ? 'disabled' : ''} onclick="changeProjectPage(1)"><span class="material-icons">chevron_right</span></button>
+        </div>
+    `;
+}
+
+function openArchiveProjectModal(projectId) {
+    const modal = document.getElementById('archive-project-modal');
+    document.getElementById('archive-project-request-id').value = projectId;
+    document.getElementById('archive-project-notes').value = '';
+    modal.classList.add('visible');
+}
+
+function closeArchiveProjectModal() {
+    document.getElementById('archive-project-modal').classList.remove('visible');
+}
+
+async function submitArchiveProject() {
+    const requestId = document.getElementById('archive-project-request-id').value;
+    const notes = document.getElementById('archive-project-notes').value.trim();
+
+    if (!notes) {
+        showToast("O motivo do arquivamento é obrigatório.", "warning");
+        return;
+    }
+
+    const btn = document.querySelector('#archive-project-modal .btn-danger');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Arquivando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_ARCHIVE_PROJECT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                request_id: requestId,
+                observation: notes,
+                user_id: currentUserProfile.id,
+                user_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Falha ao arquivar projeto no n8n.");
+
+        showToast("Projeto arquivado com sucesso!", "success");
+        closeArchiveProjectModal();
+        
+        setTimeout(() => {
+            loadManageProjectsData();
+            loadMyProjectsData();
+        }, 1200);
+
+    } catch (e) {
+        showToast("Erro: " + e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Arquivamento';
+    }
+}
+
+function openUnarchiveProjectModal(projectId) {
+    const modal = document.getElementById('unarchive-project-modal');
+    document.getElementById('unarchive-project-request-id').value = projectId;
+    document.getElementById('unarchive-project-notes').value = '';
+    modal.classList.add('visible');
+}
+
+function closeUnarchiveProjectModal() {
+    document.getElementById('unarchive-project-modal').classList.remove('visible');
+}
+
+async function submitUnarchiveProject() {
+    const requestId = document.getElementById('unarchive-project-request-id').value;
+    const notes = document.getElementById('unarchive-project-notes').value.trim();
+
+    if (!notes) {
+        showToast("O motivo da reabertura é obrigatório.", "warning");
+        return;
+    }
+
+    const btn = document.querySelector('#unarchive-project-modal .btn-success');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Reativando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_UNARCHIVE_PROJECT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({
+                request_id: requestId,
+                observation: notes,
+                user_id: currentUserProfile.id,
+                user_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Falha ao desarquivar no servidor.");
+
+        showToast("Projeto desarquivado e retornado para a fila ativa!", "success");
+        closeUnarchiveProjectModal();
+
+        setTimeout(() => {
+            loadManageProjectsData();
+            loadMyProjectsData();
+        }, 1200);
+
+    } catch (e) {
+        showToast("Erro: " + e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Retorno';
     }
 }
 
@@ -19592,7 +20208,8 @@ async function submitProjectRequest(event) {
         return;
     }
 
-    const btn = document.getElementById('btn-submit-project');
+    // ID CORRETO DO BOTÃO DO MODAL INTEGRADO
+    const btn = document.getElementById('btn-submit-proj-or-tool');
     btn.disabled = true;
     btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Enviando...';
 
@@ -19646,7 +20263,7 @@ async function submitProjectRequest(event) {
         showToast("Erro: " + e.message, "danger");
     } finally {
         btn.disabled = false;
-        btn.innerHTML = 'Enviar Solicitação de Projeto';
+        btn.innerHTML = 'Enviar Solicitação';
     }
 }
 
@@ -19720,6 +20337,28 @@ async function openProjectDetailsModal(projectId) {
                 </div>
             </div>
         `;
+
+        // Registros de Arquivamento e Desarquivamento no Histórico
+        const archiveEvents = history.filter(h => h.status === 'archived' || h.status === 'unarchived');
+        archiveEvents.forEach(event => {
+            const eventDate = new Date(event.created_at).toLocaleString('pt-BR');
+            const isArchived = event.status === 'archived';
+            const color = isArchived ? 'var(--color-text-secondary)' : 'var(--color-info)';
+            const title = isArchived ? 'Projeto Arquivado' : 'Projeto Reativado / Desarquivado';
+            const cleanNotes = (event.notes || '').replace(/\[.*?\]\s*/, '').trim();
+
+            timelineHTML += `
+                <div style="margin-bottom: 2rem; position: relative;">
+                    <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: ${color}; border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px ${color};"></div>
+                    <div style="font-weight: 800; font-size: 0.8rem; text-transform: uppercase; color: ${color}; letter-spacing: 0.05em;">${title}</div>
+                    <div style="font-size: 0.9rem; margin-top: 4px; font-weight: 600;">Auditoria da Gestão</div>
+                    <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${event.changed_by_name || 'Gestão'} • ${eventDate}</div>
+                    <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-background); border: 1px solid var(--color-border); padding: 10px; border-radius: 8px;">
+                        <div><strong style="color: ${color};">Motivo:</strong> ${cleanNotes}</div>
+                    </div>
+                </div>
+            `;
+        });
 
         // Etapa 2: Planejamento
         const planHistory = history.find(h => h.status === 'planned');
@@ -19914,6 +20553,168 @@ async function submitProjectExecution() {
 // FIM: MÓDULO DE PROJETOS E FERRAMENTARIA
 // ===================================================================
 
+
+// ===================================================================
+// INÍCIO: SELETOR DE FUNCIONÁRIOS PARA HORAS EXTRAS (rh_funcionarios)
+// ===================================================================
+function calculateOvertimeHours() {
+    const start = document.getElementById('req-hora-inicio')?.value;
+    const end = document.getElementById('req-hora-fim')?.value;
+    const hiddenInput = document.getElementById('req-horario-adicional');
+    const badge = document.getElementById('he-duration-badge');
+
+    if (!start || !end) {
+        if (hiddenInput) hiddenInput.value = '';
+        if (badge) badge.textContent = '';
+        return;
+    }
+
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    
+    // Trata virada de madrugada (ex: 22:00 até 02:00)
+    if (diffMinutes < 0) {
+        diffMinutes += 24 * 60;
+    }
+
+    const hours = (diffMinutes / 60).toFixed(1).replace('.0', '');
+    const formattedText = `${start} - ${end} (${hours}h)`;
+
+    if (hiddenInput) hiddenInput.value = formattedText;
+    if (badge) badge.innerHTML = `⏱️ Duração calculada: <strong>${hours} hora(s)</strong> (${start} até ${end})`;
+}
+let allRhEmployeesCache = [];
+let selectedRhEmployees = [];
+
+async function loadRhEmployeesForOvertime() {
+    selectedRhEmployees = [];
+    const listContainer = document.getElementById('he-employees-list');
+    const deptSelect = document.getElementById('he-filter-dept');
+    const roleSelect = document.getElementById('he-filter-role');
+
+    if (!listContainer) return;
+    listContainer.innerHTML = '<div class="empty-state" style="padding: 1rem; font-size: 0.85rem;"><span class="material-icons refresh-spin">sync</span> Carregando funcionários...</div>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('rh_funcionarios')
+            .select('id, nome, funcao, departamento, horario')
+            .order('nome', { ascending: true });
+
+        if (error) throw error;
+        allRhEmployeesCache = data || [];
+
+        // Popula os Selects de Filtros
+        const depts = [...new Set(allRhEmployeesCache.map(e => e.departamento).filter(Boolean))].sort();
+        const roles = [...new Set(allRhEmployeesCache.map(e => e.funcao).filter(Boolean))].sort();
+
+        if (deptSelect) {
+            deptSelect.innerHTML = '<option value="">Todos Departamentos</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+        }
+        if (roleSelect) {
+            roleSelect.innerHTML = '<option value="">Todas Funções</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
+        }
+
+        filterRhEmployees();
+
+    } catch (e) {
+        console.error("Erro ao carregar funcionários do RH:", e);
+        listContainer.innerHTML = '<div class="empty-state" style="color:var(--color-danger); font-size:0.85rem;">Erro ao carregar lista de funcionários.</div>';
+    }
+}
+
+function filterRhEmployees() {
+    const listContainer = document.getElementById('he-employees-list');
+    if (!listContainer) return;
+
+    const deptFilter = document.getElementById('he-filter-dept')?.value || '';
+    const roleFilter = document.getElementById('he-filter-role')?.value || '';
+    const searchFilter = (document.getElementById('he-filter-search')?.value || '').toLowerCase().trim();
+
+    const filtered = allRhEmployeesCache.filter(emp => {
+        const matchDept = !deptFilter || emp.departamento === deptFilter;
+        const matchRole = !roleFilter || emp.funcao === roleFilter;
+        const matchSearch = !searchFilter || emp.nome.toLowerCase().includes(searchFilter);
+        return matchDept && matchRole && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+        listContainer.innerHTML = '<div class="empty-state" style="padding: 1rem; font-size: 0.85rem;">Nenhum colaborador encontrado com estes filtros.</div>';
+        return;
+    }
+
+    listContainer.innerHTML = filtered.map(emp => {
+        const isChecked = selectedRhEmployees.some(item => item.id === emp.id);
+        return `
+            <label class="custom-checkbox" style="padding: 0.35rem 0.5rem; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-background); margin: 0; display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleRhEmployeeCheckbox('${emp.id}', '${emp.nome.replace(/'/g, "\\'")}', '${(emp.funcao || '').replace(/'/g, "\\'")}', '${(emp.departamento || '').replace(/'/g, "\\'")}', this.checked)">
+                <span class="checkbox-box" style="width: 16px; height: 16px; margin-right: 8px;"><span class="material-icons" style="font-size: 12px;">check</span></span>
+                <div style="display: flex; flex-direction: column; overflow: hidden;">
+                    <span style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${emp.nome}</span>
+                    <span style="font-size: 0.7rem; color: var(--color-text-secondary);">${emp.funcao || '-'} • ${emp.departamento || '-'}</span>
+                </div>
+            </label>
+        `;
+    }).join('');
+}
+
+function toggleRhEmployeeCheckbox(id, nome, funcao, departamento, isChecked) {
+    if (isChecked) {
+        if (!selectedRhEmployees.some(e => e.id === id)) {
+            selectedRhEmployees.push({ id, nome, funcao, departamento });
+        }
+    } else {
+        selectedRhEmployees = selectedRhEmployees.filter(e => e.id !== id);
+    }
+    updateOvertimeEmployeesSummary();
+}
+
+function toggleManualEmployeesInput() {
+    const wrapper = document.getElementById('he-manual-wrapper');
+    if (!wrapper) return;
+    const isHidden = wrapper.style.display === 'none';
+    wrapper.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) document.getElementById('he-manual-names')?.focus();
+    updateOvertimeEmployeesSummary();
+}
+
+function updateOvertimeEmployeesSummary() {
+    const manualInput = document.getElementById('he-manual-names');
+    const manualText = manualInput ? manualInput.value.trim() : '';
+    const manualList = manualText ? manualText.split(',').map(n => n.trim()).filter(Boolean) : [];
+
+    const totalCount = selectedRhEmployees.length + manualList.length;
+
+    // Atualiza o contador na tela
+    const countLabel = document.getElementById('he-selected-count');
+    if (countLabel) {
+        countLabel.textContent = `${totalCount} colaborador(es) selecionado(s)`;
+    }
+
+    // Atualiza o input de Quantidade de Funcionários
+    const qtdInput = document.getElementById('req-qtd-funcionarios');
+    if (qtdInput) {
+        qtdInput.value = totalCount;
+    }
+
+    // Monta a string estruturada com os nomes para o Payload
+    const selectedNames = selectedRhEmployees.map(e => `${e.nome} (${e.funcao || 'Função N/D'} - ${e.departamento || 'Setor N/D'})`);
+    let finalString = selectedNames.join(', ');
+    if (manualList.length > 0) {
+        if (finalString) finalString += ' | ';
+        finalString += `Inseridos Manualmente: ${manualList.join(', ')}`;
+    }
+
+    const hiddenInput = document.getElementById('req-colaboradores-he');
+    if (hiddenInput) {
+        hiddenInput.value = finalString;
+    }
+}
+// ===================================================================
+// FIM: SELETOR DE FUNCIONÁRIOS PARA HORAS EXTRAS
+// ===================================================================
 
 // ==========================================
 // FUNÇÕES DO PAINEL DE FILTRO RETRÁTIL
@@ -21068,6 +21869,110 @@ async function toggleToolingSubItem(requestId, itemIndex, checkboxElement) {
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="document.getElementById('project-execution-modal').classList.remove('visible')">Cancelar</button>
             <button class="btn btn-success" onclick="submitProjectExecution()">Confirmar Conclusão</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE ARQUIVAMENTO DE PROJETO -->
+<div id="archive-project-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Arquivar Projeto</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeArchiveProjectModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">
+                O projeto será movido para os Arquivados. Informe uma justificativa para o histórico de auditoria.
+            </p>
+            <input type="hidden" id="archive-project-request-id">
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Motivo do Arquivamento*</label>
+                <textarea id="archive-project-notes" class="input-field" rows="3" placeholder="Ex: Cancelado pelo setor requerente, substituído por outra demanda..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeArchiveProjectModal()">Cancelar</button>
+            <button class="btn btn-danger" onclick="submitArchiveProject()">Confirmar Arquivamento</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE DESARQUIVAMENTO DE PROJETO -->
+<div id="unarchive-project-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Desarquivar Projeto</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeUnarchiveProjectModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">
+                O projeto retornará para a fila ativa de Gestão de Projetos.
+            </p>
+            <input type="hidden" id="unarchive-project-request-id">
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Motivo da Reabertura / Retorno*</label>
+                <textarea id="unarchive-project-notes" class="input-field" rows="3" placeholder="Ex: Demanda reativada pelo cliente/setor..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeUnarchiveProjectModal()">Cancelar</button>
+            <button class="btn btn-success" onclick="submitUnarchiveProject()">Confirmar Retorno</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE ARQUIVAMENTO DE TÉCNICO -->
+<div id="archive-technician-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Arquivar Técnico</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeArchiveTechnicianModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">
+                O técnico será desativado e deixará de aparecer como opção disponível para agendamento de manutenções.
+            </p>
+            <input type="hidden" id="archive-technician-id">
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Técnico</label>
+                <input type="text" id="archive-technician-name" class="input-field" readonly style="background: var(--color-background); font-weight: 600;">
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Motivo do Arquivamento*</label>
+                <textarea id="archive-technician-notes" class="input-field" rows="3" placeholder="Ex: Saiu da empresa, mudou de setor, etc." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeArchiveTechnicianModal()">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirm-archive-tech" onclick="submitArchiveTechnician()">Confirmar Arquivamento</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE DESARQUIVAMENTO DE TÉCNICO -->
+<div id="unarchive-technician-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>Desarquivar Técnico</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeUnarchiveTechnicianModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">
+                O técnico voltará a ficar ativo e visível para agendamento em manutenções.
+            </p>
+            <input type="hidden" id="unarchive-technician-id">
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Técnico</label>
+                <input type="text" id="unarchive-technician-name" class="input-field" readonly style="background: var(--color-background); font-weight: 600;">
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Observação de Reativação (Opcional)</label>
+                <textarea id="unarchive-technician-notes" class="input-field" rows="3" placeholder="Ex: Retornou às atividades..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeUnarchiveTechnicianModal()">Cancelar</button>
+            <button class="btn btn-success" id="btn-confirm-unarchive-tech" onclick="submitUnarchiveTechnician()">Confirmar Reativação</button>
         </div>
     </div>
 </div>
