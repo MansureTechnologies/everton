@@ -2253,6 +2253,8 @@ body.fullscreen-flow .flowchart-monitor-bar {
         const N8N_PROCESS_RH_APPROVAL_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/process_rh_request_approval';
         const N8N_SAVE_WORKFLOW_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/save_request_workflow';
         const N8N_SAVE_MAINTENANCE_CAUSE_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/save-maintenance-cause';
+        const N8N_ADD_MAINTENANCE_EXECUTION_PHOTO_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/add-maintenance-execution-photo';
+        const N8N_UPDATE_REQUEST_EQUIPMENT_URL = 'https://n8n-n8n.znxk1t.easypanel.host/webhook/update-request-equipment';
         
         // ===================================================================
         // INÍCIO: NOVAS CONSTANTES PARA ROTINAS PONTUAIS
@@ -6765,7 +6767,7 @@ async function openRequestDetailsModal(requestId) {
                         </div>`;
                     }
                 } else {
-                    // Renderiza como texto normal e verifica se é a Situação da Máquina para injetar o botão de alterar
+                    // Renderiza como texto normal e verifica se é a Situação da Máquina ou Equipamento para injetar o botão de alterar
                     let extraButton = '';
                     
                     if (keyLower === 'situacao_maquina' && request.type === 'maintenance' && !request.data.mudanca_situacao_pendente && request.status !== 'executed' && request.status !== 'rejected') {
@@ -6775,6 +6777,17 @@ async function openRequestDetailsModal(requestId) {
                         
                         if (canManage_local || isReq_local) {
                             extraButton = `<button class="btn-icon" onclick="openMachineStatusChangeModal('${request.id}', '${value}')" title="Alterar Situação" style="padding: 2px; margin-left: 6px; background: var(--color-info-bg); color: var(--color-info); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; vertical-align: middle; cursor: pointer; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'"><span class="material-icons" style="font-size: 14px;">edit</span></button>`;
+                        }
+                    }
+
+                    if (keyLower === 'equipamento' && request.type === 'maintenance' && ['pending', 'planned', 'executed'].includes(request.status)) {
+                        const p_local = currentUserProfile.permissions || [];
+                        const canManage_local = p_local.includes('manage_users') || p_local.includes('mgt_maintenance');
+                        const isReq_local = request.requester_id === currentUserProfile.id;
+                        
+                        if (canManage_local || isReq_local) {
+                            const escapedVal = String(value || '').replace(/'/g, "\\'");
+                            extraButton = `<button class="btn-icon" onclick="openChangeEquipmentModal('${request.id}', '${escapedVal}')" title="Alterar Equipamento" style="padding: 2px; margin-left: 6px; background: var(--color-info-bg); color: var(--color-info); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; vertical-align: middle; cursor: pointer; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'"><span class="material-icons" style="font-size: 14px;">edit</span></button>`;
                         }
                     }
 
@@ -6920,9 +6933,10 @@ async function openRequestDetailsModal(requestId) {
             });
 
             // --- INÍCIO: RENDERIZAR HISTÓRICO UNIFICADO (CRONOLÓGICO) ---
-            // Vamos pegar todos os eventos do histórico (Compras, Handshake, Arquivamento)
+            // Vamos pegar todos os eventos do histórico (Compras, Handshake, Troca de Equipamento, Arquivamento)
             const unifiedHistory = requestHistory.filter(h => 
                 (h.status && h.status.startsWith('waiting_part_update')) ||
+                (h.status && h.status.startsWith('equipment_changed')) ||
                 h.status === 'status_change_requested' ||
                 h.status === 'status_change_accepted' ||
                 h.status === 'status_change_rejected' ||
@@ -6957,6 +6971,14 @@ async function openRequestDetailsModal(requestId) {
                             <div><strong style="color: var(--color-text-secondary);">Observação:</strong> ${obs}</div>
                         </div>`;
                         
+                } else if (event.status.startsWith('equipment_changed')) {
+                    color = 'var(--color-info)';
+                    title = 'Equipamento Alterado';
+                    const cleanNotes = event.notes ? event.notes.replace(/\[.*?\]\s*/, '').trim() : '';
+                    detailsHTML = `
+                        <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-info-bg); border: 1px solid rgba(59, 130, 246, 0.2); padding: 10px; border-radius: 8px;">
+                            <div style="color: var(--color-text-primary);">${cleanNotes}</div>
+                        </div>`;
                 } else if (event.status.startsWith('status_change')) {
                     color = 'var(--color-info)'; 
                     title = 'Solicitação de Alteração';
@@ -7005,6 +7027,43 @@ async function openRequestDetailsModal(requestId) {
                 ? `<div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px;"><strong style="color: var(--color-success);">Execução Real:</strong> ${new Date(request.real_execution_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>`
                 : `<div style="font-size: 0.8rem; color: var(--color-warning); margin-top: 2px;">Hora real não informada.</div>`;
 
+            // 1. Prepara todo o conteúdo ANTES de abrir a crase do timelineHTML
+            const anexosFin = (request.data && Array.isArray(request.data.anexos_finalizacao)) ? request.data.anexos_finalizacao : [];
+            let fotosFinalizacaoHTML = '';
+            if (anexosFin.length > 0) {
+                fotosFinalizacaoHTML = `
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(16, 185, 129, 0.4);">
+                        <strong style="font-size: 0.75rem; text-transform: uppercase; color: var(--color-success); display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+                            <span class="material-icons" style="font-size: 16px;">photo_library</span> Fotos / Evidências de Finalização (${anexosFin.length}):
+                        </strong>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${anexosFin.map((af, idx) => `
+                                <div style="display: flex; gap: 10px; background: var(--color-surface); padding: 8px; border-radius: 8px; border: 1px solid var(--color-border); align-items: flex-start;">
+                                    <img src="${af.url}" alt="${af.nome || 'Foto'}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; cursor: zoom-in; border: 1px solid var(--color-border); flex-shrink: 0;" onclick="openLightbox(event, '${af.url}')">
+                                    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 700; font-size: 0.8rem; color: var(--color-text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${af.nome || 'Evidência #' + (idx + 1)}</span>
+                                            <span style="font-size: 0.7rem; color: var(--color-text-secondary); flex-shrink: 0; margin-left: 6px;">${af.criado_em ? new Date(af.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''}</span>
+                                        </div>
+                                        ${af.observacao ? `<div style="font-size: 0.8rem; color: var(--color-text-primary); line-height: 1.3; margin-top: 2px; white-space: pre-wrap;">${af.observacao}</div>` : '<div style="font-size: 0.75rem; color: var(--color-text-secondary); font-style: italic;">Sem observações adicionais.</div>'}
+                                        ${af.criado_por ? `<div style="font-size: 0.7rem; color: var(--color-text-secondary); margin-top: 2px;">Por: ${af.criado_por}</div>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const btnAdicionarFotoCardHTML = `
+                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                    <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;" onclick="openAddExecutionPhotoModal('${request.id}')">
+                        <span class="material-icons" style="font-size: 15px; color: var(--color-success);">add_a_photo</span> Anexar Imagem de Conclusão
+                    </button>
+                </div>
+            `;
+
+            // 2. Abre a crase do timelineHTML UMA ÚNICA VEZ e fecha no final com `;
             timelineHTML += `
                 <div style="margin-bottom: 2rem; position: relative;">
                     <div style="position: absolute; left: -36px; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--color-success); border: 4px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-success);"></div>
@@ -7015,6 +7074,8 @@ async function openRequestDetailsModal(requestId) {
                     <div style="font-size: 0.85rem; margin-top: 6px; background: var(--color-success-bg); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px; border-radius: 8px;">
                         <div style="margin-bottom: 4px;"><strong style="color: var(--color-success);">Seguiu o plano?</strong> ${seguiuPlano}</div>
                         <div><strong style="color: var(--color-success);">Relatório de Serviço (Detalhes):</strong> ${cleanDetail}</div>
+                        ${fotosFinalizacaoHTML}
+                        ${btnAdicionarFotoCardHTML}
                     </div>
                 </div>
             `;
@@ -7078,6 +7139,7 @@ async function openRequestDetailsModal(requestId) {
                 footerActionsHTML += `<button class="btn btn-success" onclick="executeMaintenanceRequestHandler('${request.id}')">Executar</button>`;
             } else if (request.status === 'executed') {
                 footerActionsHTML += `<button class="btn btn-secondary" onclick="openCorrectExecutionTimeModal('${request.id}')"><span class="material-icons" style="font-size:18px;">edit_calendar</span> Corrigir Hora</button>`;
+                footerActionsHTML += `<button class="btn btn-secondary" onclick="openAddExecutionPhotoModal('${request.id}')"><span class="material-icons" style="font-size:18px; color:var(--color-success);">add_a_photo</span> Anexar Imagem</button>`;
                 footerActionsHTML += `<button class="btn btn-secondary" onclick="generateMaintenancePDF('${request.id}', this)"><span class="material-icons" style="font-size:18px;">picture_as_pdf</span> Exportar PDF</button>`;
             }
             
@@ -16475,6 +16537,120 @@ async function saveFeedbackGoals(btnElement) {
 		
 		
 		// ===================================================================
+// INÍCIO: FUNÇÕES PARA TROCA DE EQUIPAMENTO DA MANUTENÇÃO
+// ===================================================================
+async function openChangeEquipmentModal(requestId, currentEquipment) {
+    await loadMachinesForForm();
+    const modal = document.getElementById('change-equipment-modal');
+    document.getElementById('change-equip-request-id').value = requestId;
+    document.getElementById('change-equip-current-display').textContent = currentEquipment || 'Nenhum equipamento definido';
+    document.getElementById('change-equip-notes').value = '';
+    document.getElementById('change-equip-manual').value = '';
+
+    const sectorSelect = document.getElementById('change-equip-sector-filter');
+    const sectors = [...new Set((allMachinesCache || []).map(m => m.sector).filter(Boolean))].sort();
+    sectorSelect.innerHTML = '<option value="all">Todos os Setores</option>' + sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+
+    filterChangeEquipmentMachines();
+    modal.classList.add('visible');
+}
+
+function closeChangeEquipmentModal() {
+    document.getElementById('change-equipment-modal').classList.remove('visible');
+}
+
+function filterChangeEquipmentMachines() {
+    const sectorFilter = document.getElementById('change-equip-sector-filter').value;
+    const machineSelect = document.getElementById('change-equip-select');
+    
+    let machines = allMachinesCache || [];
+    if (sectorFilter !== 'all') {
+        machines = machines.filter(m => m.sector.toLowerCase() === sectorFilter.toLowerCase());
+    }
+
+    machineSelect.innerHTML = '<option value="">-- Selecione a Máquina --</option>' + 
+        machines.map(m => `<option value="${m.name} (Cod: ${m.code || 'S/N'})">${m.code ? m.code + ' - ' : ''}${m.name} (${m.sector})</option>`).join('') +
+        '<option value="__manual__">Outro / Apenas Infraestrutura (Digitar)</option>';
+}
+
+async function submitChangeEquipment() {
+    const requestId = document.getElementById('change-equip-request-id').value;
+    const oldEquipment = document.getElementById('change-equip-current-display').textContent;
+    const selectedMachine = document.getElementById('change-equip-select').value;
+    const manualObs = document.getElementById('change-equip-manual').value.trim();
+    const observation = document.getElementById('change-equip-notes').value.trim();
+
+    if (!selectedMachine) {
+        showToast("Selecione uma máquina ou a opção de digitar.", "warning");
+        return;
+    }
+
+    if (selectedMachine === '__manual__' && !manualObs) {
+        showToast("Digite o nome do equipamento/infraestrutura no campo adicional.", "warning");
+        return;
+    }
+
+    if (!observation) {
+        showToast("O motivo da troca é obrigatório para registrar na linha do tempo.", "warning");
+        return;
+    }
+
+    let newEquipment = '';
+    if (selectedMachine === '__manual__') {
+        newEquipment = manualObs;
+    } else {
+        newEquipment = selectedMachine;
+        if (manualObs) {
+            newEquipment += ` | Outros/Obs: ${manualObs}`;
+        }
+    }
+
+    const btn = document.getElementById('btn-confirm-change-equipment');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons refresh-spin">sync</span> Salvando...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await fetch(N8N_UPDATE_REQUEST_EQUIPMENT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                request_id: requestId,
+                old_equipment: oldEquipment,
+                new_equipment: newEquipment,
+                observation: observation,
+                user_id: currentUserProfile.id,
+                user_name: currentUserProfile.full_name
+            })
+        });
+
+        if (!response.ok) throw new Error("Falha ao atualizar o equipamento no servidor.");
+
+        showToast("Equipamento alterado e registrado no histórico!", "success");
+        closeChangeEquipmentModal();
+
+        setTimeout(() => {
+            openRequestDetailsModal(requestId);
+            if (document.getElementById('maintenance-tab-manage')?.style.display === 'block') {
+                loadMaintenancePage();
+            }
+        }, 1200);
+
+    } catch (e) {
+        showToast("Erro: " + e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar Troca';
+    }
+}
+// ===================================================================
+// FIM: FUNÇÕES PARA TROCA DE EQUIPAMENTO DA MANUTENÇÃO
+// ===================================================================
+
+// ===================================================================
 // INÍCIO: FUNÇÕES DE HANDSHAKE (SITUAÇÃO DA MÁQUINA)
 // ===================================================================
 function openMachineStatusChangeModal(requestId, currentStatus) {
@@ -16660,6 +16836,95 @@ async function answerMachineStatusChange(requestId, isAccepted) {
 
             } catch(e) {
                 showToast("Erro ao salvar: " + e.message, "danger");
+            }
+        }
+
+        // ===================================================================
+        // FUNÇÕES PARA ANEXAR FOTO DE CONCLUSÃO DE MANUTENÇÃO (PÓS-EXECUÇÃO)
+        // ===================================================================
+        function openAddExecutionPhotoModal(requestId) {
+            const modal = document.getElementById('add-execution-photo-modal');
+            document.getElementById('execution-photo-request-id').value = requestId;
+            document.getElementById('execution-photo-file').value = '';
+            document.getElementById('execution-photo-obs').value = '';
+            const btn = document.getElementById('btn-submit-execution-photo');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Anexo';
+            }
+            modal.classList.add('visible');
+        }
+
+        function closeAddExecutionPhotoModal() {
+            document.getElementById('add-execution-photo-modal').classList.remove('visible');
+        }
+
+        async function submitAddExecutionPhoto() {
+            const requestId = document.getElementById('execution-photo-request-id').value;
+            const fileInput = document.getElementById('execution-photo-file');
+            const file = fileInput ? fileInput.files[0] : null;
+            const observation = document.getElementById('execution-photo-obs').value.trim();
+            const btn = document.getElementById('btn-submit-execution-photo');
+
+            if (!file) {
+                showToast("Por favor, selecione uma imagem para anexar.", "warning");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-icons refresh-spin" style="font-size:16px; margin-right:4px;">sync</span> Enviando...';
+
+            try {
+                showToast("Fazendo upload da imagem...", "info");
+                const fileExt = file.name.split('.').pop();
+                const fileName = `maint_exec_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+                // Upload direto para o bucket 'anexos' do Supabase Storage
+                const { error: uploadError } = await supabaseClient.storage
+                    .from('anexos')
+                    .upload(fileName, file);
+
+                if (uploadError) throw new Error("Erro no upload do anexo: " + uploadError.message);
+
+                const { data: publicUrlData } = supabaseClient.storage
+                    .from('anexos')
+                    .getPublicUrl(fileName);
+
+                const payload = {
+                    request_id: requestId,
+                    photo_url: publicUrlData.publicUrl,
+                    photo_name: file.name,
+                    observation: observation,
+                    user_id: currentUserProfile.id,
+                    user_name: currentUserProfile.full_name
+                };
+
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                const response = await fetch(N8N_ADD_MAINTENANCE_EXECUTION_PHOTO_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("Falha ao salvar anexo no servidor.");
+
+                showToast("Foto de conclusão anexada com sucesso!", "success");
+                closeAddExecutionPhotoModal();
+
+                // Recarrega o modal em tempo real para exibir o novo anexo
+                setTimeout(() => {
+                    openRequestDetailsModal(requestId);
+                }, 1200);
+
+            } catch (e) {
+                console.error("Erro ao adicionar foto de execução:", e);
+                showToast(e.message, "danger");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Anexo';
             }
         }
 
@@ -21348,6 +21613,55 @@ async function toggleToolingSubItem(requestId, itemIndex, checkboxElement) {
     </div>
 </div>
 
+<!-- NOVO MODAL: ALTERAR EQUIPAMENTO DA MANUTENÇÃO -->
+<div id="change-equipment-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Alterar Equipamento da Manutenção</h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeChangeEquipmentModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">
+                Substitua o equipamento vinculado a este pedido. A troca será salva e registrada na linha do tempo da requisição.
+            </p>
+            <input type="hidden" id="change-equip-request-id">
+
+            <div style="background: var(--color-background); border: 1px solid var(--color-border); padding: 10px; border-radius: 8px; margin-bottom: 1rem;">
+                <label style="font-size: 0.7rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; display: block; margin-bottom: 2px;">Equipamento Atual:</label>
+                <span id="change-equip-current-display" style="font-weight: 600; font-size: 0.85rem; color: var(--color-text-primary);"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="change-equip-sector-filter">Filtrar por Setor (Opcional)</label>
+                <select id="change-equip-sector-filter" class="input-field" onchange="filterChangeEquipmentMachines()">
+                    <option value="all">Todos os Setores</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="change-equip-select">Novo Equipamento*</label>
+                <select id="change-equip-select" class="input-field" required>
+                    <option value="">-- Selecione a Máquina --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="change-equip-manual">Complemento / Descrição Adicional</label>
+                <input type="text" id="change-equip-manual" class="input-field" placeholder="Ex: Mecânica, Cilindro pneumático, etc.">
+            </div>
+
+            <div class="form-group">
+                <label for="change-equip-notes">Motivo da Troca*</label>
+                <textarea id="change-equip-notes" class="input-field" rows="3" placeholder="Por que o equipamento está sendo alterado? (Obrigatório para auditoria)" required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeChangeEquipmentModal()">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirm-change-equipment" onclick="submitChangeEquipment()">Confirmar Troca</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: ALTERAR SITUAÇÃO DA MÁQUINA -->
 <div id="machine-status-change-modal" class="modal-overlay">
     <div class="modal-content" style="max-width: 450px;">
@@ -21468,6 +21782,37 @@ async function toggleToolingSubItem(requestId, itemIndex, checkboxElement) {
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeUnarchiveMaintenanceModal()">Cancelar</button>
             <button class="btn btn-success" onclick="submitUnarchiveMaintenance()">Confirmar Retorno</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ANEXAR FOTO DE CONCLUSÃO DA MANUTENÇÃO -->
+<div id="add-execution-photo-modal" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-icons" style="color: var(--color-success);">add_a_photo</span>
+                Anexar Foto de Conclusão
+            </h3>
+            <span class="material-icons" style="cursor:pointer;" onclick="closeAddExecutionPhotoModal()">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--color-text-secondary); margin-top: 0; font-size: 0.85rem;">
+                Envie fotos ou evidências da manutenção concluída. Você pode adicionar quantas imagens forem necessárias ao longo do tempo.
+            </p>
+            <input type="hidden" id="execution-photo-request-id">
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="execution-photo-file">Selecione a Imagem / Evidência*</label>
+                <input type="file" id="execution-photo-file" class="input-field" accept="image/*,.pdf" required>
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="execution-photo-obs">Observação / Descrição da Foto</label>
+                <textarea id="execution-photo-obs" class="input-field" rows="3" placeholder="Ex: Foto do motor após troca do rolamento e teste de rotação..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddExecutionPhotoModal()">Cancelar</button>
+            <button class="btn btn-success" id="btn-submit-execution-photo" onclick="submitAddExecutionPhoto()">Salvar Anexo</button>
         </div>
     </div>
 </div>
